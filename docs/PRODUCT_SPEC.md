@@ -31,10 +31,16 @@ supply, limited price transparency.
 8. The platform can generate revenue through transaction fees.
 9. Users find the experience trustworthy and easy to use.
 
-Status against each objective: see `docs/ROADMAP.md`. As of this commit,
-objective 1 has a real (not fabricated) foundation — signup, farm profile
-creation, and admin verification all work end-to-end against the schema.
-Objectives 2–8 require Phases 2–4.
+Status against each objective: see `docs/ROADMAP.md`. As of this commit
+(through Phase 2): objectives 1–4 have a real (not fabricated) path —
+signup, farm profile creation and admin verification (1), farmer product
+listing (2), marketplace search/browse (3), and cart/checkout through
+order creation (4) all work end-to-end against the schema. Objective 5
+(M-PESA payment) and 6 (farmers managing paid orders) need Phase 3;
+objectives 7–8 (transaction tracking, revenue) are mechanically ready
+(`orders.platform_fee`, `platform_settings`) but only meaningful once
+Phase 3 payments exist. Objective 9 is ongoing and judged by use, not a
+single commit.
 
 ## Brand
 

@@ -79,7 +79,8 @@ STK-push time is the longer-term fix and is tracked in `docs/ROADMAP.md`.
 ## What's implemented vs. planned
 
 See `docs/ROADMAP.md` for the phase-by-phase breakdown. As of this
-commit: Phase 1 (foundation — branding, schema, RLS, auth, farmer
-verification workflow, marketing site) is implemented. Marketplace
-browsing has a real (not fabricated) read path with correct empty states.
-Cart, checkout, M-PESA, AI, and full admin operations are not yet built.
+commit: Phase 1 (foundation) and Phase 2 (marketplace) are implemented —
+branding, schema, RLS, auth, farmer verification, marketing site, farmer
+product CRUD with image upload, marketplace search/filters, cart, and
+checkout (order creation only — no payment). M-PESA, AI, and full admin
+operations (payments, disputes, analytics) are not yet built.

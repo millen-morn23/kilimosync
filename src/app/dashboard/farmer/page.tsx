@@ -1,10 +1,14 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sprout } from "lucide-react";
+import { ClipboardList, Package, Plus } from "lucide-react";
 
 import { getCurrentUser, getOwnFarmerProfile } from "@/lib/data/current-user";
+import { getOwnFarmerProducts } from "@/lib/data/products";
+import { getFarmerOrderLines } from "@/lib/data/orders";
 import { FarmerProfileForm } from "@/components/farmer/farmer-profile-form";
 import { VerificationBadge } from "@/components/farmer/verification-badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default async function FarmerDashboardPage() {
   const user = await getCurrentUser();
@@ -30,6 +34,23 @@ export default async function FarmerDashboardPage() {
     );
   }
 
+  const [products, orderLines] = await Promise.all([
+    getOwnFarmerProducts(farmerProfile.id),
+    getFarmerOrderLines(farmerProfile.id),
+  ]);
+
+  const activeListings = products.filter((p) => p.status === "active").length;
+  const distinctOrders = new Set(orderLines.map((l) => l.orderId)).size;
+  const totalSales = orderLines
+    .filter((l) => l.paymentStatus === "PAID")
+    .reduce((sum, l) => sum + l.subtotal, 0);
+
+  const stats = [
+    { label: "Active listings", value: activeListings },
+    { label: "Orders received", value: distinctOrders },
+    { label: "Total sales", value: `KES ${totalSales.toFixed(2)}` },
+  ];
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -37,6 +58,38 @@ export default async function FarmerDashboardPage() {
           Welcome, {user.name.split(" ")[0]}
         </h1>
         <VerificationBadge status={farmerProfile.verification_status} />
+      </div>
+
+      <div className="mt-8 grid gap-6 sm:grid-cols-3">
+        {stats.map((stat) => (
+          <Card key={stat.label}>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">{stat.label}</p>
+              <p className="mt-2 text-2xl font-semibold text-foreground">{stat.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Button asChild>
+          <Link href="/dashboard/farmer/products/new">
+            <Plus />
+            Add produce
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/dashboard/farmer/products">
+            <Package />
+            Manage products
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/dashboard/farmer/orders">
+            <ClipboardList />
+            View orders
+          </Link>
+        </Button>
       </div>
 
       <Card className="mt-8">
@@ -57,14 +110,6 @@ export default async function FarmerDashboardPage() {
             <p className="text-sm text-foreground">{farmerProfile.farm_description}</p>
           )}
         </CardContent>
-      </Card>
-
-      <Card className="mt-6 items-center gap-3 py-12 text-center">
-        <Sprout className="size-8 text-primary" />
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Product listings, orders and sales analytics are launching in the
-          next development phase.
-        </p>
       </Card>
     </div>
   );

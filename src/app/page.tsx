@@ -1,4 +1,4 @@
-import { SiteHeader } from "@/components/marketing/site-header";
+import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { Hero } from "@/components/marketing/hero";
 import { ProblemSolution } from "@/components/marketing/problem-solution";
@@ -19,7 +19,7 @@ import { FinalCta } from "@/components/marketing/final-cta";
 export default function HomePage() {
   return (
     <>
-      <SiteHeader />
+      <SiteHeaderContainer />
       <main>
         <Hero />
         <ProblemSolution />

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, ShoppingCart, X } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const NAV_LINKS = [
   { href: "/#how-it-works", label: "How It Works" },
@@ -15,7 +16,15 @@ const NAV_LINKS = [
   { href: "/#faq", label: "FAQ" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({
+  isAuthenticated = false,
+  dashboardHref = "/dashboard",
+  cartItemCount,
+}: {
+  isAuthenticated?: boolean;
+  dashboardHref?: string;
+  cartItemCount?: number;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,12 +47,32 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/login">Login</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link href="/signup">Get Started</Link>
-          </Button>
+          {typeof cartItemCount === "number" && (
+            <Button variant="ghost" size="icon" asChild aria-label="Cart">
+              <Link href="/cart" className="relative">
+                <ShoppingCart />
+                {cartItemCount > 0 && (
+                  <Badge className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]">
+                    {cartItemCount}
+                  </Badge>
+                )}
+              </Link>
+            </Button>
+          )}
+          {isAuthenticated ? (
+            <Button size="sm" asChild>
+              <Link href={dashboardHref}>Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/login">Login</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/signup">Get Started</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <button
@@ -72,12 +101,29 @@ export function SiteHeader() {
             ))}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/login">Login</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/signup">Get Started</Link>
-            </Button>
+            {typeof cartItemCount === "number" && (
+              <Button variant="outline" asChild>
+                <Link href="/cart" onClick={() => setOpen(false)}>
+                  Cart{cartItemCount > 0 ? ` (${cartItemCount})` : ""}
+                </Link>
+              </Button>
+            )}
+            {isAuthenticated ? (
+              <Button asChild>
+                <Link href={dashboardHref} onClick={() => setOpen(false)}>
+                  Dashboard
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" asChild>
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/signup">Get Started</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

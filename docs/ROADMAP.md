@@ -3,7 +3,7 @@
 Phases match the product brief's 24-step process. Each phase should ship
 tested and documented before the next begins — see `CLAUDE.md` rule 9.
 
-## Phase 1 — Foundation ✅ (this commit)
+## Phase 1 — Foundation ✅
 
 - Brand identity: palette as design tokens, SVG logo/favicon.
 - Full database schema + RLS policies + storage buckets
@@ -19,27 +19,52 @@ tested and documented before the next begins — see `CLAUDE.md` rule 9.
   cart/checkout yet).
 - Documentation: this file and the rest of `docs/`.
 
-**Not done in Phase 1, and known to be missing:** no automated tests have
-been run (no Supabase project exists to run RLS tests against — see
-`docs/TESTING.md`); `npm run build`/`npm run lint` have been run locally
-but the app has not been exercised against a real backend.
+## Phase 2 — Marketplace ✅
 
-## Phase 2 — Marketplace
+- Farmer product CRUD (`/dashboard/farmer/products`): create, edit,
+  pause/resume, delete, with image upload direct to the `product-images`
+  storage bucket (`src/components/farmer/product-image-uploader.tsx`).
+- Marketplace search, category filter, county filter, price range, and
+  sort (newest / price asc / price desc) on `/marketplace`
+  (`src/components/marketplace/marketplace-filters.tsx`).
+- Product detail page: quantity selector respecting `min_order_quantity`
+  and `quantity_available`, similar products, add to cart.
+- Cart (`/cart`): add/update/remove, server-side inventory and
+  min-order-quantity validation on every mutation
+  (`src/lib/actions/cart.ts`) — never trusts a client-submitted quantity.
+- Checkout (`/checkout` → `src/lib/actions/checkout.ts`): creates an order
+  as `PENDING_PAYMENT`/`PENDING`, recomputing subtotal, platform fee (from
+  `platform_settings`), and a flat delivery fee entirely server-side.
+  **Does not process payment** — the order confirmation page says so
+  explicitly. New `orders`/`order_items` INSERT policies needed for this
+  (`supabase/migrations/0005_checkout_policies.sql`), since Phase 1 had
+  only specified SELECT/UPDATE for those tables.
+- Buyer order history (`/dashboard/buyer/orders`, `/orders/[id]`) and
+  farmer order visibility (`/dashboard/farmer/orders`) — read-only; no
+  status-transition UI yet, since nothing can leave `PENDING_PAYMENT`
+  without Phase 3.
+- Cart badge in the site header, real dashboard stats (active listings,
+  orders received, total sales) replacing the Phase 1 placeholders.
+- A styled 404 page (`src/app/not-found.tsx`).
 
-Product CRUD for farmers (with image upload against the storage buckets
-that already exist), category/location/price/availability filters and
-search on `/marketplace`, cart, checkout UI (no payment yet — order
-created `PENDING_PAYMENT`), inventory display and min-order-quantity
-enforcement.
+**Not done in Phase 1/2, and known to be missing:** no automated tests
+have been run (no Supabase project exists to run RLS tests against — see
+`docs/TESTING.md`); `npm run build`/`npm run lint` pass locally and the UI
+has been checked in a real browser (Playwright + Chromium) for rendering
+and redirect behavior, but no flow has been exercised against a real
+Supabase backend, since none is connected to this environment. Sort by
+"popularity" from the original brief isn't implemented — there's no order
+data to rank by yet; only newest/price sort exist.
 
 ## Phase 3 — Payments
 
+Checkout already creates the order (Phase 2); this phase is purely the
 M-PESA Daraja sandbox integration exactly as specified in
-`docs/M-PESA.md`: STK push, callback handler, atomic inventory deduction
-via `deduct_product_inventory()`, payment reconciliation view for admin,
-the full M-PESA test plan in `docs/TESTING.md` passing against sandbox.
-Production Daraja credentials are configured only after this phase's
-tests pass.
+`docs/M-PESA.md`: STK push triggered from the existing order, callback
+handler, atomic inventory deduction via `deduct_product_inventory()`,
+payment reconciliation view for admin, the full M-PESA test plan in
+`docs/TESTING.md` passing against sandbox. Production Daraja credentials
+are configured only after this phase's tests pass.
 
 ## Phase 4 — Intelligence
 

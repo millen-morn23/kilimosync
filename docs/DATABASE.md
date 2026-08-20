@@ -13,7 +13,7 @@ regenerate it from the live project once one exists (see `CLAUDE.md`).
 | `categories` | Product taxonomy | Public read, admin write. Seeded once in `0003_seed_categories.sql` — taxonomy, not sample listings. |
 | `products` | Farmer listings | `status='active'` is publicly visible; other statuses only to the owning farmer/admin. |
 | `carts` / `cart_items` | Buyer's in-progress order | Strictly buyer-owned. |
-| `orders` | One purchase | Buyer sees own; a farmer sees an order only if one of their products is in it (`is_farmer_of_order()`); only admin can update. Orders are never client-inserted — created by server-side checkout logic (Phase 3). |
+| `orders` | One purchase | Buyer sees own; a farmer sees an order only if one of their products is in it (`is_farmer_of_order()`); only admin can update. Created by the checkout Server Action (`src/lib/actions/checkout.ts`), which runs server-side as the authenticated buyer — `orders_insert_own`/`order_items_insert_own_order` (`0005_checkout_policies.sql`) restrict that insert to the buyer's own `buyer_id`, so money math still can't be forged from the client even though the RLS-respecting client (not the service role) performs the write. |
 | `order_items` | Snapshot of purchased line items | `product_name_snapshot` / `price_at_purchase` are copied at purchase time and never re-derived from `products`, so historical orders stay accurate if a product is later edited, paused, or deleted. |
 | `payments` | M-PESA payment record | Buyer + admin only — **never** exposed to farmers. Written exclusively by the server-side M-PESA integration. |
 | `deliveries` | Manual delivery coordination (MVP) | `transporter_id` references `users` and is nullable — reserved for the future transporter role without a schema change. |
@@ -37,9 +37,11 @@ order and its payment are different entities with different write paths:
   `COMPLETED`, `CANCELLED`, `REFUNDED`, `DISPUTED`.
 
 An order cannot legitimately move past `CONFIRMED` while its
-`payment_status` isn't `PAID` — that invariant is enforced in the Phase 3
-checkout/callback application logic (not yet built), the same place that
-will own all order-status transitions server-side.
+`payment_status` isn't `PAID`. Checkout (Phase 2, `src/lib/actions/checkout.ts`)
+always creates orders as `PENDING_PAYMENT`/`PENDING` — it never sets either
+status further ahead. Advancing past `CONFIRMED` is the M-PESA callback
+handler's job (Phase 3, not yet built), the same place that will own all
+further order-status transitions server-side.
 
 ## Row Level Security
 

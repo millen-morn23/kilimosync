@@ -1,65 +1,92 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BadgeCheck, MapPin, Sprout } from "lucide-react";
+import { Sprout } from "lucide-react";
 
-import { getFeaturedProducts } from "@/lib/data/products";
-import { SiteHeader } from "@/components/marketing/site-header";
+import { getMarketplaceProducts } from "@/lib/data/products";
+import { getCategories } from "@/lib/data/categories";
+import { KENYAN_COUNTIES } from "@/lib/validation/auth";
+import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { Badge } from "@/components/ui/badge";
+import { ProductCard } from "@/components/marketplace/product-card";
+import { MarketplaceFiltersBar } from "@/components/marketplace/marketplace-filters";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Marketplace" };
 
-export default async function MarketplacePage() {
-  const products = await getFeaturedProducts(48);
+type SearchParams = {
+  q?: string;
+  category?: string;
+  county?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  sort?: string;
+};
+
+export default async function MarketplacePage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const sort =
+    params.sort === "price_asc" || params.sort === "price_desc" ? params.sort : "newest";
+
+  const [products, categories] = await Promise.all([
+    getMarketplaceProducts({
+      query: params.q,
+      categoryId: params.category,
+      county: params.county,
+      minPrice: params.minPrice ? Number(params.minPrice) : undefined,
+      maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
+      sort,
+      limit: 48,
+    }),
+    getCategories(),
+  ]);
+
+  const hasFilters = Boolean(
+    params.q || params.category || params.county || params.minPrice || params.maxPrice
+  );
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeaderContainer />
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Marketplace</h1>
         <p className="mt-2 text-muted-foreground">
           Fresh produce listed directly by Kenyan farmers.
         </p>
 
+        <div className="mt-8">
+          <MarketplaceFiltersBar
+            categories={categories}
+            counties={KENYAN_COUNTIES}
+            defaultValues={{
+              q: params.q ?? "",
+              category: params.category ?? "",
+              county: params.county ?? "",
+              minPrice: params.minPrice ?? "",
+              maxPrice: params.maxPrice ?? "",
+              sort,
+            }}
+          />
+        </div>
+
         {products.length === 0 ? (
           <Card className="mt-10 items-center gap-3 py-20 text-center">
             <Sprout className="size-10 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">
-              No listings yet
+              {hasFilters ? "No listings match your filters" : "No listings yet"}
             </h2>
             <p className="max-w-sm text-sm text-muted-foreground">
-              Search, filters and full checkout are launching in the next
-              development phase. Farmer listings will appear here as soon as
-              they go live.
+              {hasFilters
+                ? "Try widening your search or clearing a filter."
+                : "Farmer listings will appear here as soon as they go live."}
             </p>
           </Card>
         ) : (
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {products.map((product) => (
-              <Link key={product.id} href={`/marketplace/${product.slug}`}>
-                <Card className="h-full gap-3 overflow-hidden py-0 transition-shadow hover:shadow-md">
-                  <div className="flex aspect-square items-center justify-center bg-accent/50">
-                    <Sprout className="size-10 text-primary/60" />
-                  </div>
-                  <div className="flex flex-col gap-2 px-4 pb-4">
-                    <h3 className="font-medium text-foreground">{product.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      KES {product.price} / {product.price_unit}
-                    </p>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <MapPin className="size-3.5" />
-                      {product.farm_name}
-                      {product.county ? `, ${product.county}` : ""}
-                      {product.verification_status === "verified" && (
-                        <Badge variant="success" className="ml-1">
-                          <BadgeCheck className="size-3" />
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </Link>
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
         )}

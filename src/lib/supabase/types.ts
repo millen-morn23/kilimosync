@@ -100,7 +100,22 @@ export interface Database {
           county: string;
         };
         Update: Partial<Database["public"]["Tables"]["farmer_profiles"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "farmer_profiles_user_id_fkey",
+            columns: ["user_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "farmer_profiles_verified_by_fkey",
+            columns: ["verified_by"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       categories: {
         Row: {
@@ -146,13 +161,36 @@ export interface Database {
           quantity_unit: string;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "products_farmer_id_fkey",
+            columns: ["farmer_id"],
+            isOneToOne: false,
+            referencedRelation: "farmer_profiles",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "products_category_id_fkey",
+            columns: ["category_id"],
+            isOneToOne: false,
+            referencedRelation: "categories",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       carts: {
         Row: { id: string; buyer_id: string; created_at: string; updated_at: string };
         Insert: { id?: string; buyer_id: string };
         Update: Partial<Database["public"]["Tables"]["carts"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "carts_buyer_id_fkey",
+            columns: ["buyer_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       cart_items: {
         Row: {
@@ -165,7 +203,22 @@ export interface Database {
         };
         Insert: { id?: string; cart_id: string; product_id: string; quantity: number };
         Update: Partial<Database["public"]["Tables"]["cart_items"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_cart_id_fkey",
+            columns: ["cart_id"],
+            isOneToOne: false,
+            referencedRelation: "carts",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "cart_items_product_id_fkey",
+            columns: ["product_id"],
+            isOneToOne: false,
+            referencedRelation: "products",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       orders: {
         Row: {
@@ -195,7 +248,15 @@ export interface Database {
           buyer_phone: string;
         };
         Update: Partial<Database["public"]["Tables"]["orders"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "orders_buyer_id_fkey",
+            columns: ["buyer_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       order_items: {
         Row: {
@@ -218,7 +279,29 @@ export interface Database {
           subtotal: number;
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey",
+            columns: ["order_id"],
+            isOneToOne: false,
+            referencedRelation: "orders",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey",
+            columns: ["product_id"],
+            isOneToOne: false,
+            referencedRelation: "products",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "order_items_farmer_id_fkey",
+            columns: ["farmer_id"],
+            isOneToOne: false,
+            referencedRelation: "farmer_profiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       payments: {
         Row: {
@@ -244,7 +327,22 @@ export interface Database {
           phone_number: string;
         };
         Update: Partial<Database["public"]["Tables"]["payments"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey",
+            columns: ["order_id"],
+            isOneToOne: false,
+            referencedRelation: "orders",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "payments_buyer_id_fkey",
+            columns: ["buyer_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       deliveries: {
         Row: {
@@ -267,7 +365,22 @@ export interface Database {
           delivery_location: string;
         };
         Update: Partial<Database["public"]["Tables"]["deliveries"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_order_id_fkey",
+            columns: ["order_id"],
+            isOneToOne: false,
+            referencedRelation: "orders",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "deliveries_transporter_id_fkey",
+            columns: ["transporter_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       notifications: {
         Row: {
@@ -287,7 +400,15 @@ export interface Database {
           message: string;
         };
         Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey",
+            columns: ["user_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       reviews: {
         Row: {
@@ -307,7 +428,36 @@ export interface Database {
           rating: number;
         };
         Update: Partial<Database["public"]["Tables"]["reviews"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "reviews_order_item_id_fkey",
+            columns: ["order_item_id"],
+            isOneToOne: false,
+            referencedRelation: "order_items",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "reviews_buyer_id_fkey",
+            columns: ["buyer_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "reviews_farmer_id_fkey",
+            columns: ["farmer_id"],
+            isOneToOne: false,
+            referencedRelation: "farmer_profiles",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "reviews_product_id_fkey",
+            columns: ["product_id"],
+            isOneToOne: false,
+            referencedRelation: "products",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       disputes: {
         Row: {
@@ -329,7 +479,22 @@ export interface Database {
           description: string;
         };
         Update: Partial<Database["public"]["Tables"]["disputes"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "disputes_order_id_fkey",
+            columns: ["order_id"],
+            isOneToOne: false,
+            referencedRelation: "orders",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "disputes_user_id_fkey",
+            columns: ["user_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       audit_logs: {
         Row: {
@@ -346,7 +511,15 @@ export interface Database {
           entity_type: string;
         };
         Update: Partial<Database["public"]["Tables"]["audit_logs"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_id_fkey",
+            columns: ["actor_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       platform_settings: {
         Row: {
@@ -357,7 +530,15 @@ export interface Database {
         };
         Insert: Partial<Database["public"]["Tables"]["platform_settings"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["platform_settings"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "platform_settings_updated_by_fkey",
+            columns: ["updated_by"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
       };
     };
     Views: Record<string, never>;

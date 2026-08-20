@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { BadgeCheck, MapPin, Sprout } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/server";
-import { SiteHeader } from "@/components/marketing/site-header";
+import { getProductBySlug, getSimilarProducts } from "@/lib/data/products";
+import { getCurrentUser } from "@/lib/data/current-user";
+import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { ProductCard } from "@/components/marketplace/product-card";
+import { AddToCartForm } from "@/components/marketplace/add-to-cart-form";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export default async function ProductDetailPage({
   params,
@@ -14,39 +17,37 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    notFound();
-  }
-
-  const supabase = await createClient();
-
-  const { data: product } = await supabase
-    .from("products")
-    .select(
-      "id, name, description, price, price_unit, quantity_available, quantity_unit, harvest_date, farmer_profiles(farm_name, county, verification_status)"
-    )
-    .eq("slug", slug)
-    .eq("status", "active")
-    .maybeSingle();
-
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const farmer = Array.isArray(product.farmer_profiles)
-    ? product.farmer_profiles[0]
-    : product.farmer_profiles;
+  const [similar, user] = await Promise.all([
+    getSimilarProducts(product.category_id, product.id),
+    getCurrentUser(),
+  ]);
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeaderContainer />
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-2">
-          <div className="flex aspect-square items-center justify-center rounded-2xl border border-border bg-accent/40">
-            <Sprout className="size-16 text-primary/60" />
+          <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-border bg-accent/40">
+            {product.images[0] ? (
+              <Image
+                src={product.images[0]}
+                alt={product.name}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            ) : (
+              <Sprout className="size-16 text-primary/60" />
+            )}
           </div>
           <div>
             <h1 className="text-3xl font-semibold text-foreground">{product.name}</h1>
             <p className="mt-2 text-xl text-foreground">
-              KES {product.price} <span className="text-base text-muted-foreground">/ {product.price_unit}</span>
+              KES {product.price}{" "}
+              <span className="text-base text-muted-foreground">/ {product.price_unit}</span>
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {product.quantity_available} {product.quantity_unit} available
@@ -54,9 +55,9 @@ export default async function ProductDetailPage({
 
             <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="size-4" />
-              {farmer?.farm_name}
-              {farmer?.county ? `, ${farmer.county}` : ""}
-              {farmer?.verification_status === "verified" && (
+              {product.farm_name}
+              {product.county ? `, ${product.county}` : ""}
+              {product.verification_status === "verified" && (
                 <Badge variant="success" className="gap-1">
                   <BadgeCheck className="size-3.5" />
                   Verified
@@ -68,11 +69,32 @@ export default async function ProductDetailPage({
               <p className="mt-6 text-sm text-foreground">{product.description}</p>
             )}
 
-            <Button size="lg" className="mt-8" disabled>
-              Cart &amp; checkout coming soon
-            </Button>
+            {product.harvest_date && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Harvested {new Date(product.harvest_date).toLocaleDateString("en-KE")}
+              </p>
+            )}
+
+            <AddToCartForm
+              productId={product.id}
+              minOrderQuantity={product.min_order_quantity}
+              quantityAvailable={product.quantity_available}
+              quantityUnit={product.quantity_unit}
+              isAuthenticated={Boolean(user)}
+            />
           </div>
         </div>
+
+        {similar.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-xl font-semibold text-foreground">Similar produce</h2>
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {similar.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </div>
+        )}
       </main>
       <SiteFooter />
     </>
