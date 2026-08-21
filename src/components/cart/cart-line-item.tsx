@@ -66,6 +66,7 @@ export function CartLineItem({ line }: { line: CartLine }) {
           variant="outline"
           size="icon"
           className="size-8"
+          aria-label="Decrease quantity"
           disabled={isPending || quantity <= line.minOrderQuantity}
           onClick={() => commitQuantity(quantity - 1)}
         >
@@ -77,6 +78,7 @@ export function CartLineItem({ line }: { line: CartLine }) {
           variant="outline"
           size="icon"
           className="size-8"
+          aria-label="Increase quantity"
           disabled={isPending || quantity >= line.quantityAvailable}
           onClick={() => commitQuantity(quantity + 1)}
         >

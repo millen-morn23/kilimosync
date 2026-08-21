@@ -59,6 +59,7 @@ export function AddToCartForm({
             type="button"
             variant="outline"
             size="icon"
+            aria-label="Decrease quantity"
             disabled={quantity <= minOrderQuantity}
             onClick={() => setQuantity((q) => Math.max(minOrderQuantity, q - minOrderQuantity))}
           >
@@ -71,6 +72,7 @@ export function AddToCartForm({
             type="button"
             variant="outline"
             size="icon"
+            aria-label="Increase quantity"
             disabled={quantity + minOrderQuantity > quantityAvailable}
             onClick={() => setQuantity((q) => Math.min(quantityAvailable, q + minOrderQuantity))}
           >

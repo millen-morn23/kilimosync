@@ -144,6 +144,64 @@ new, non-obvious code and is the single highest-value thing to verify
 first once a live project exists: confirm a successful M-PESA payment
 still correctly flips `order_status` to `CONFIRMED` after this change.
 No refund flow exists (`order_status = 'REFUNDED'` has no code path).
+The admin `updateOrderStatus()` path technically also permits
+`CANCELLED`, but no UI exposes it — see the "known gap" note in
+`docs/DATABASE.md`'s order-status-vocabulary section for why (no
+inventory restock logic exists yet, so shipping the button without it
+would be a real bug, not a convenience).
+
+## Phase 5.5 — Analytics & hardening ✅
+
+Requested as a "finish the MVP, don't move to M-PESA production or
+Phase 6 yet" pass — admin analytics, a regression review of everything
+built so far, and demo data, explicitly **without** connecting real
+Daraja/Anthropic/Supabase credentials.
+
+- **Admin analytics** (`/admin/analytics`): overview KPIs, orders/GTV/
+  platform-revenue over time (7d/30d/90d/12mo), user growth, top
+  products, top categories, county activity — filterable by period,
+  county, category, and order status. All aggregation is server-side SQL
+  (`0009_analytics.sql`), never a raw table pulled into Node or the
+  browser just to sum it. See `docs/ARCHITECTURE.md` §Analytics and
+  `docs/DATABASE.md` §Analytics for the architecture and the exact
+  financial-metric definitions (GTV and platform revenue are computed
+  from `payment_status = 'PAID'` only, never from an order that merely
+  exists — matching Phase 3's payment-reconciliation view, not a second,
+  possibly-disagreeing definition of "revenue").
+- **Regression review** (code-level, not live — see `docs/TESTING.md`
+  for exactly what that means and doesn't mean here): found and fixed one
+  real bug (`products.slug` was only unique per-farmer, but the product
+  detail page looks it up globally — `0010_global_product_slugs.sql`) and
+  one real accessibility gap (two icon-only quantity-stepper buttons had
+  no `aria-label`). Confirmed via code review, not live execution: M-PESA
+  duplicate-callback protection, the `service_role` trigger bypass,
+  inventory-double-deduction protection, AI role-scoping, and
+  reviews/disputes authorization all still hold as designed.
+- **Demo data**: `npm run seed:demo`
+  (`scripts/seed-demo-data.ts`) creates ~10 real, loginable farmer
+  accounts, 3 buyers, and 15+ products per of the 8 categories (136
+  products total across the default template set) via the Supabase Admin
+  API — not raw `auth.users` inserts, and not a numbered migration (see
+  `docs/DATABASE.md` §Demo data for why). **Has not been run** — this
+  environment has no live Supabase project to run it against, so the
+  `Category | Product Count` report the product brief asked for cannot
+  actually be produced here. The script prints it the moment someone
+  runs it against a real project.
+- **Mobile/accessibility**: reviewed every page reachable without
+  authentication at a 375px viewport (landing, marketplace, login,
+  signup) via Playwright screenshots — no responsive issues found beyond
+  the aria-label fix above. Pages requiring auth (dashboards, checkout,
+  analytics itself) could not be visually verified end-to-end without a
+  live project; their responsive Tailwind classes were reviewed in code
+  instead (see `docs/TESTING.md`).
+
+**Not done, stated plainly:** nothing in this phase has run against a
+live Supabase project, so "verified" throughout means "reviewed and
+reasoned through," not "clicked through with a real account." The
+`CANCELLED`/`REFUNDED` order-status gap noted above is real and
+unresolved. Platform-wide admin *product* management (editing/removing
+any farmer's listing as an admin, distinct from the farmer's own product
+CRUD from Phase 2) is still not built.
 
 ## Phase 6 — Expansion (not built; schema allows it)
 

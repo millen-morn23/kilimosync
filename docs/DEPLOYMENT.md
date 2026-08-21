@@ -22,10 +22,10 @@ deployment.
 
 ## Steps to first deploy (staging)
 
-1. Create a Supabase project. Run the migrations in order:
+1. Create a Supabase project. Run every migration in order:
    `supabase db push` (or apply each file in `supabase/migrations/` via
-   the SQL editor) — `0001_init.sql`, `0002_rls.sql`,
-   `0003_seed_categories.sql`, `0004_storage.sql`.
+   the SQL editor, in filename order — check the directory rather than
+   trusting a hardcoded list here to stay current as phases ship).
 2. Regenerate `src/lib/supabase/types.ts` from the live schema (see
    `CLAUDE.md`).
 3. Set environment variables in Vercel (Project Settings → Environment
@@ -40,6 +40,16 @@ deployment.
    `docs/SECURITY.md`).
 6. Smoke test: sign up as a farmer, submit a farm profile, verify it as
    the admin account, confirm the verified badge appears.
+7. **Staging/dev only, never production:** `npm run seed:demo`
+   (`scripts/seed-demo-data.ts`) populates ~10 loginable demo farmer
+   accounts, 3 demo buyers, and 15+ real products per category — see
+   `docs/DATABASE.md` §Demo data. It creates real Supabase Auth users
+   with a publicly-documented shared password (`KilimoDemo123!`), which
+   is exactly why this step is staging/dev-only: running it against a
+   production project would be a real security issue, not just messy
+   data. Nothing about it runs automatically — it's a script a developer
+   runs on purpose, reading `SUPABASE_SERVICE_ROLE_KEY` from
+   `.env.local`.
 
 ## Pre-production checklist (do not skip any item)
 

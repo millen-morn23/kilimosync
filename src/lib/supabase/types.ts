@@ -606,6 +606,86 @@ export interface Database {
         };
         Returns: string;
       };
+      admin_analytics_overview: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total_users: number;
+          total_farmers: number;
+          verified_farmers: number;
+          pending_farmers: number;
+          total_buyers: number;
+          active_products: number;
+          total_orders: number;
+          completed_orders: number;
+          cancelled_orders: number;
+          gross_transaction_value: number;
+          platform_revenue: number;
+          successful_payments: number;
+          failed_payments: number;
+          open_disputes: number;
+        }[];
+      };
+      admin_orders_over_time: {
+        Args: {
+          p_start: string;
+          p_end: string;
+          p_bucket?: string;
+          p_county?: string | null;
+          p_statuses?: OrderStatus[] | null;
+        };
+        Returns: {
+          bucket: string;
+          total_orders: number;
+          paid_orders: number;
+          gross_value: number;
+          platform_revenue: number;
+        }[];
+      };
+      admin_user_growth: {
+        Args: { p_start: string; p_end: string; p_bucket?: string };
+        Returns: {
+          bucket: string;
+          new_buyers: number;
+          new_farmers: number;
+          newly_verified_farmers: number;
+        }[];
+      };
+      admin_top_products: {
+        Args: {
+          p_start: string;
+          p_end: string;
+          p_category_id?: string | null;
+          p_county?: string | null;
+          p_limit?: number;
+        };
+        Returns: {
+          product_id: string | null;
+          product_name: string;
+          category_name: string;
+          units_sold: number;
+          revenue: number;
+        }[];
+      };
+      admin_top_categories: {
+        Args: { p_start: string; p_end: string; p_county?: string | null; p_limit?: number };
+        Returns: {
+          category_id: string | null;
+          category_name: string;
+          order_count: number;
+          units_sold: number;
+          transaction_value: number;
+        }[];
+      };
+      admin_county_activity: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          county: string;
+          farmer_count: number;
+          buyer_count: number;
+          order_count: number;
+          transaction_value: number;
+        }[];
+      };
     };
     Enums: {
       user_role: UserRole;

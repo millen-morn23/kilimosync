@@ -27,7 +27,6 @@ async function requireFarmerProfileId(): Promise<{ farmerId: string } | { error:
 
 async function uniqueSlugFor(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  farmerId: string,
   name: string,
   excludeProductId?: string
 ): Promise<string> {
@@ -35,14 +34,13 @@ async function uniqueSlugFor(
   let slug = base;
   let suffix = 1;
 
-  // farmer_id + slug is unique — retry with a numeric suffix on collision.
-  // Loop bound (20) is a sane ceiling for realistic catalog sizes.
+  // slug is globally unique (0010_global_product_slugs.sql) — the
+  // product detail page is looked up by slug alone, with no farmer in
+  // the URL, so two farmers naming a product the same thing must not
+  // collide. Retry with a numeric suffix on collision. Loop bound (20)
+  // is a sane ceiling for realistic catalog sizes.
   for (let attempt = 0; attempt < 20; attempt++) {
-    let query = supabase
-      .from("products")
-      .select("id")
-      .eq("farmer_id", farmerId)
-      .eq("slug", slug);
+    let query = supabase.from("products").select("id").eq("slug", slug);
     if (excludeProductId) query = query.neq("id", excludeProductId);
 
     const { data } = await query.maybeSingle();
@@ -67,7 +65,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
   const { name, categoryId, description, price, priceUnit, quantityAvailable, quantityUnit, minOrderQuantity, harvestDate, images } =
     parsed.data;
 
-  const slug = await uniqueSlugFor(supabase, owner.farmerId, name);
+  const slug = await uniqueSlugFor(supabase, name);
 
   const { data, error } = await supabase
     .from("products")
@@ -114,7 +112,7 @@ export async function updateProduct(
   const { name, categoryId, description, price, priceUnit, quantityAvailable, quantityUnit, minOrderQuantity, harvestDate, images } =
     parsed.data;
 
-  const slug = await uniqueSlugFor(supabase, owner.farmerId, name, productId);
+  const slug = await uniqueSlugFor(supabase, name, productId);
 
   const { error } = await supabase
     .from("products")

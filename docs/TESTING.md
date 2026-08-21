@@ -8,6 +8,32 @@ retrofitted. `npm run build` and `npm run lint` are the only checks that
 currently run (see `CLAUDE.md`). This is a real gap, not a hidden one:
 **no test in this document has been executed against this codebase.**
 
+## Phase 5.5 regression review — what "verified" means here
+
+With no live Supabase/Daraja/Anthropic credentials available, "regression
+testing" for this phase meant a code-level review — re-reading each area
+against its own RLS policies, guard triggers, and server actions — plus
+`npm run build`/`npm run lint` and Playwright screenshots of every page
+reachable without authentication (landing, marketplace, login, signup,
+404, and a temporary standalone preview route for the new chart
+component, deleted before commit). It did **not** mean clicking through
+a running app with a real account, because no account can exist without
+a live project. Treat every "verified" below as "reviewed and reasoned
+through," not "exercised end-to-end" — the distinction matters and this
+document doesn't blur it.
+
+One real bug came out of this pass, not zero: `products.slug` was
+`unique(farmer_id, slug)`, but the product detail page looks a product up
+by slug with no farmer in the URL — two farmers naming a product the same
+thing would have collided. Fixed in `0010_global_product_slugs.sql`
+before the demo-seed script (which deliberately creates exactly that
+scenario — the same crop name across multiple farmers) could ever trigger
+it live. See `docs/DATABASE.md`.
+
+Two icon-only quantity-stepper buttons (`add-to-cart-form.tsx`,
+`cart-line-item.tsx`) had no `aria-label` — a screen reader would announce
+just "button." Fixed.
+
 ## Planned suites
 
 ### Unit
@@ -85,6 +111,26 @@ These are negative-path tests: each must **fail**.
     `guard_order_status_update()` (see `docs/DATABASE.md` §Row Level
     Security). Get this wrong and Phase 3 payments silently stop
     confirming orders while still charging the buyer.
+18. An anonymous (unauthenticated) request can call any `admin_*`
+    analytics function (should fail — `REVOKE EXECUTE ... FROM anon` in
+    `0009_analytics.sql`).
+19. **Positive-path:** a non-admin *authenticated* user (buyer or farmer)
+    calling an `admin_*` analytics function does **not** error — it
+    returns near-empty/zero aggregates, since these functions are
+    `security invoker` by design (unlike the M-PESA functions) and rely
+    on each underlying table's own RLS, not a revoke, to keep the result
+    meaningless for a non-admin. Confirms the two different security
+    models (M-PESA's `security definer` + revoke vs. analytics'
+    `security invoker`) both actually hold.
+20. Two different farmers each create a product whose name slugifies
+    identically (e.g. both list "Tomatoes"). Both inserts succeed with
+    *different* slugs, and `/marketplace/<first-slug>` and
+    `/marketplace/<second-slug>` each resolve to the correct farmer's
+    listing — the regression test for the `products_slug_key` fix
+    (`0010_global_product_slugs.sql`). This is exactly the scenario
+    `scripts/seed-demo-data.ts` creates on purpose (many farmers selling
+    the same staple crops), so running that script is itself a decent
+    smoke test for this fix.
 
 Each should be written as: authenticate as the "attacker" role via the
 Supabase JS client (anon key + password), attempt the operation, assert

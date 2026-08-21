@@ -80,20 +80,60 @@ short-lived inventory hold at STK-push time — so this case becomes rarer,
 not just handled — is the longer-term fix and is tracked in
 `docs/ROADMAP.md`.
 
+## Analytics
+
+`/admin/analytics` (`docs/ROADMAP.md` Phase 5.5). All aggregation happens
+in Postgres — `supabase/migrations/0009_analytics.sql` defines six
+`admin_*` SQL functions (overview KPIs, orders/GTV/revenue over time,
+user growth, top products, top categories, county activity) that group
+and sum in the database, so the Node process and the browser alike only
+ever receive already-aggregated rows, never a raw orders table to sum
+client-side. Every function is deliberately `security invoker` — the
+opposite choice from the M-PESA functions, and just as deliberate: it
+runs with the *caller's* RLS, not a service-role bypass. An admin sees
+full platform data because `is_admin()` already grants that on every
+underlying table; anyone else gets back near-empty aggregates (whatever
+their own RLS-visible rows happen to sum to), not another user's data
+and not an error. `EXECUTE` is revoked from `anon` (no reason to let an
+unauthenticated request run an aggregation query at all) but left open to
+any `authenticated` role — RLS is the actual boundary, not the grant.
+
+**Financial metric definitions** (the ones that matter — see
+`docs/DATABASE.md` §Analytics for the full table): "gross transaction
+value" and "platform revenue" are computed **only** from
+`orders.payment_status = 'PAID'` — a verified, completed payment, never
+an order that merely exists or a payment that failed/was
+cancelled/timed out. GTV sums `subtotal` (value of goods actually sold);
+platform revenue sums `platform_fee` (commission actually earned).
+Delivery fees are pass-through, included in neither. This mirrors the
+admin payment-reconciliation view built in Phase 3
+(`src/lib/data/payments.ts`) — both read from the same
+`payment_status`/`order_status` vocabulary, so the two screens can't
+disagree about what counts as a "successful" transaction.
+
+Charts are hand-rolled SVG (`src/components/analytics/trend-chart.tsx`),
+not a charting library — single-series by design (see that file's
+header comment) so there's never a categorical-color/legend problem to
+solve, matching the brand's existing token set (primary green) with no
+new colors introduced. Each ships a hover tooltip and a collapsible
+data table for accessibility.
+
 ## What's implemented vs. planned
 
 See `docs/ROADMAP.md` for the phase-by-phase breakdown. As of this
-commit, Phases 1–5 are implemented — branding, schema, RLS, auth, farmer
-verification, marketing site, farmer product CRUD with image upload,
-marketplace search/filters, cart, checkout, M-PESA STK push and callback
-handling with atomic inventory deduction, admin payment reconciliation,
-KilimoSync AI (tool-calling chat for buyer/farmer/admin), and order
-lifecycle operations (farmer/admin status progression, real notifications
-across every role, reviews, disputes). Phases 3 and 4 are code-complete
-but unexercised against a real backend — no Daraja sandbox, live Supabase
+commit, Phases 1–5 plus admin analytics (5.5) are implemented —
+branding, schema, RLS, auth, farmer verification, marketing site, farmer
+product CRUD with image upload, marketplace search/filters, cart,
+checkout, M-PESA STK push and callback handling with atomic inventory
+deduction, admin payment reconciliation, KilimoSync AI (tool-calling chat
+for buyer/farmer/admin), order lifecycle operations (farmer/admin status
+progression, real notifications across every role, reviews, disputes),
+and platform-wide analytics. Phases 3 and 4 are code-complete but
+unexercised against a real backend — no Daraja sandbox, live Supabase
 project, or Anthropic API key exists in this environment, so neither a
-real payment nor a real AI conversation has happened yet; Phase 5's new
-RLS policy and trigger (`0008_orders_lifecycle.sql`) are unverified for
-the same reason. See `docs/ROADMAP.md` for exactly what each phase needs
-before being called done. Platform-wide admin analytics and Phase 6
-(transporter/agent/B2B expansion) are not built.
+real payment nor a real AI conversation has happened yet; the Phase 5
+RLS policy/trigger and the Phase 5.5 analytics functions are unverified
+for the same reason (verified only via a code-level regression review —
+see `docs/TESTING.md`). See `docs/ROADMAP.md` for exactly what each phase
+needs before being called done. Phase 6 (transporter/agent/B2B
+expansion) is not built, by design — out of MVP scope.

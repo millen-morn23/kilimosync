@@ -11,7 +11,7 @@ regenerate it from the live project once one exists (see `CLAUDE.md`).
 | `users` | Profile extending `auth.users` (1:1) | Created by the `handle_new_user` trigger on signup, never by client insert. `role` and `is_suspended` can only be changed by an admin (`guard_user_self_update` trigger) — not just an RLS policy, so even a service-role misuse in application code would need to explicitly override, not accidentally slip through. |
 | `farmer_profiles` | Storefront data for a farmer | Public read (farm name/county/verification are storefront info). `verification_status`/`verified_at`/`verified_by` are admin-only writes, enforced by `guard_farmer_verification_update` trigger. |
 | `categories` | Product taxonomy | Public read, admin write. Seeded once in `0003_seed_categories.sql` — taxonomy, not sample listings. |
-| `products` | Farmer listings | `status='active'` is publicly visible; other statuses only to the owning farmer/admin. |
+| `products` | Farmer listings | `status='active'` is publicly visible; other statuses only to the owning farmer/admin. `slug` is globally unique (`products_slug_key`, `0010_global_product_slugs.sql`) — it was originally `unique(farmer_id, slug)`, a bug caught in the Phase 5.5 regression review: `/marketplace/[slug]` looks a product up by slug alone, so two farmers naming a product the same thing would have collided the moment both listings existed. |
 | `carts` / `cart_items` | Buyer's in-progress order | Strictly buyer-owned. |
 | `orders` | One purchase | Buyer sees own (insert-only, via checkout — no direct update); a farmer sees an order only if one of their products is in it (`is_farmer_of_order()`) and, as of Phase 5, may update `order_status` (only) on it, restricted to `CONFIRMED → PREPARING → READY_FOR_DELIVERY` by `guard_order_status_update()` (`0008_orders_lifecycle.sql`); admin can update anything. Created by the checkout Server Action (`src/lib/actions/checkout.ts`) — `orders_insert_own`/`order_items_insert_own_order` (`0005_checkout_policies.sql`) restrict that insert to the buyer's own `buyer_id`, so money math still can't be forged from the client even though the RLS-respecting client (not the service role) performs the write. Every `order_status` change, from any actor, fires `notify_order_status_change()` (buyer notification) automatically — see below. |
 | `order_items` | Snapshot of purchased line items | `product_name_snapshot` / `price_at_purchase` are copied at purchase time and never re-derived from `products`, so historical orders stay accurate if a product is later edited, paused, or deleted. |
@@ -50,7 +50,19 @@ called only from the M-PESA callback handler). From `CONFIRMED` onward,
 `updateOrderStatus`, guarded by `guard_order_status_update()`) and then an
 admin-driven leg (`OUT_FOR_DELIVERY` → `DELIVERED` → `COMPLETED`, same
 action, same guard trigger's admin bypass) — see `docs/ROADMAP.md` Phase 5.
-`REFUNDED` has no code path yet (no refund flow exists).
+
+**Known gap, found in the Phase 5.5 regression review, not yet closed:**
+`updateOrderStatus()`'s admin path also technically permits `CANCELLED`
+(`src/lib/actions/orders.ts`), and `guard_order_status_update()` doesn't
+block it (admin is unrestricted there by design). But no UI exposes a
+"cancel order" action, and — the actual reason it's not exposed — nothing
+restocks `products.quantity_available` if a `CONFIRMED`-or-later order
+(whose inventory was already deducted at payment confirmation) gets
+cancelled. Adding the button without the restock logic would be a real
+inventory-accounting bug reachable from the admin UI, so it was left out
+rather than shipped half-working. `REFUNDED` has no code path at all (no
+refund flow exists). Both need a real design pass, not a quick patch —
+tracked in `docs/ROADMAP.md`.
 
 ## Row Level Security
 
@@ -83,6 +95,75 @@ own farmer/admin actions.
 
 See `docs/ARCHITECTURE.md` §Inventory concurrency for the atomic-deduction
 function and its documented known limitation.
+
+## Analytics
+
+Six `security invoker` SQL functions (`0009_analytics.sql`) back
+`/admin/analytics` — see `docs/ARCHITECTURE.md` §Analytics for why
+`security invoker` (RLS-respecting, unlike the M-PESA functions) was the
+right choice here. `EXECUTE` is revoked from `anon`, granted to
+`authenticated`.
+
+| Function | Returns | Scope |
+|---|---|---|
+| `admin_analytics_overview()` | One row of platform-wide counts | All-time |
+| `admin_orders_over_time(start, end, bucket, county?, statuses?)` | Bucketed order count / paid count / GTV / platform revenue | Date range; optional county and order-status filter |
+| `admin_user_growth(start, end, bucket)` | Bucketed new buyers / new farmers / newly-verified farmers | Date range |
+| `admin_top_products(start, end, category?, county?, limit)` | Product, category, units sold, revenue | Date range; optional category/county filter; **PAID orders only** |
+| `admin_top_categories(start, end, county?, limit)` | Category, order count, units sold, transaction value | Date range; optional county filter; **PAID orders only** |
+| `admin_county_activity()` | Every county with a farmer or an order: farmer count, buyer count, order count, transaction value | All-time |
+
+**Financial metric definitions** — the one thing every one of these
+functions agrees on, and the thing to get right if you touch any of
+them: "gross transaction value" and "platform revenue" are **always**
+computed from `orders.payment_status = 'PAID'`, never from an order that
+merely exists or a payment that failed/was cancelled/timed out —
+"Do not calculate revenue from payment attempts" was explicit in the
+brief for this phase, and it's enforced structurally here, not just by
+convention. GTV = `sum(subtotal)` (value of goods actually sold);
+platform revenue = `sum(platform_fee)` (commission actually earned).
+Delivery fees are pass-through and excluded from both. This is the same
+definition `src/lib/data/payments.ts` (Phase 3's admin payment
+reconciliation) already used — analytics didn't invent a second
+definition of "revenue" that could quietly disagree with it.
+
+`admin_top_products`/`admin_top_categories` join through `order_items`,
+so a since-edited-or-deleted product still shows correctly under
+`product_name_snapshot` (see the `order_items` row above) — a
+`left join` on `products`/`categories` means a deleted product's sales
+history isn't lost, just labeled "Uncategorized" if its category is also
+gone.
+
+New indexes for these queries: `orders(created_at)`,
+`orders(delivery_county)`, `order_items(product_id)`,
+`users(created_at)`, `farmer_profiles(verified_at)`,
+`payments(status)` — all in `0009_analytics.sql`.
+
+## Demo data
+
+`scripts/seed-demo-data.ts` (`npm run seed:demo`) — deliberately **not**
+a numbered file under `supabase/migrations/`, since migrations are real
+schema that's always safe to run anywhere including production, and this
+is sample data that must stay something a developer runs on purpose
+against a dev/staging project. It creates ~10 real, loginable farmer
+accounts (via the Supabase Admin API, `auth.admin.createUser` — not raw
+`auth.users` inserts, to avoid depending on GoTrue's internal schema),
+3 buyer accounts, and 15+ products per category, all sharing one
+publicly-documented password. It's idempotent (checks for an existing
+account by email and an existing product by farmer+name before
+inserting) and prints a `Category | Product Count` report — see
+`docs/ROADMAP.md` for whether it's actually been run, since this
+environment has no live project to run it against.
+
+It does not, and cannot, seed an admin account: `handle_new_user()`
+coerces any requested `'admin'` role to `'buyer'` regardless of who
+creates the `auth.users` row, and `guard_user_self_update()` then blocks
+a role change to `'admin'` from anything but an authenticated admin
+session (`is_admin()` checks `auth.uid()`, which is null for the
+service-role connection the script itself uses) — both deliberately, per
+`docs/SECURITY.md`'s "admin accounts are created directly against the
+database." The script prints the one-line SQL an operator runs by hand
+afterward to promote one demo account.
 
 ## Storage
 

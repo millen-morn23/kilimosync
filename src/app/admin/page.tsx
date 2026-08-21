@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Receipt, ShieldAlert, Sparkles } from "lucide-react";
+import { BarChart3, ClipboardList, Receipt, ShieldAlert, Sparkles } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentStats } from "@/lib/data/payments";
@@ -67,6 +67,22 @@ export default async function AdminDashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-accent/30 p-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Full analytics</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Orders and revenue over time, top products and categories, county activity, and user
+            growth — filterable by period, county, category, and order status.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/admin/analytics">
+            <BarChart3 />
+            View analytics
+          </Link>
+        </Button>
       </div>
 
       <div className="mt-10">
@@ -142,8 +158,8 @@ export default async function AdminDashboardPage() {
 
       <Card className="mt-10">
         <CardContent className="py-8 text-sm text-muted-foreground">
-          Product management and platform-wide analytics dashboards are
-          launching in an upcoming development phase (see docs/ROADMAP.md).
+          Standalone product management (editing/removing any farmer&apos;s listing
+          as an admin) is not yet built — see docs/ROADMAP.md.
         </CardContent>
       </Card>
     </div>
