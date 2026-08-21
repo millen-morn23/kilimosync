@@ -4,10 +4,15 @@ import { CheckCircle2, Info, XCircle } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/data/current-user";
 import { getOrderDetail } from "@/lib/data/orders";
+import { getReviewedOrderItemIds } from "@/lib/data/reviews";
+import { getDisputeForOrder } from "@/lib/data/disputes";
 import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status-badges";
 import { PayWithMpesa } from "@/components/checkout/pay-with-mpesa";
+import { ReviewForm } from "@/components/reviews/review-form";
+import { DisputeForm } from "@/components/disputes/dispute-form";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -24,6 +29,12 @@ export default async function OrderDetailPage({
 
   const order = await getOrderDetail(id);
   if (!order) notFound();
+
+  const isBuyer = order.buyer_id === user.id;
+  const [reviewedItemIds, dispute] = await Promise.all([
+    isBuyer && order.order_status === "COMPLETED" ? getReviewedOrderItemIds(order.id) : Promise.resolve(new Set<string>()),
+    isBuyer ? getDisputeForOrder(order.id) : Promise.resolve(null),
+  ]);
 
   return (
     <>
@@ -137,6 +148,48 @@ export default async function OrderDetailPage({
             )}
           </CardContent>
         </Card>
+
+        {isBuyer && order.order_status === "COMPLETED" && (
+          <Card className="mt-6">
+            <CardContent className="space-y-5 pt-6 pb-6">
+              <p className="font-medium text-foreground">Rate your order</p>
+              {order.items.map((item) =>
+                reviewedItemIds.has(item.id) ? (
+                  <p key={item.id} className="text-sm text-muted-foreground">
+                    You already rated {item.product_name_snapshot}.
+                  </p>
+                ) : (
+                  <ReviewForm key={item.id} orderItemId={item.id} productName={item.product_name_snapshot} />
+                )
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {isBuyer && order.payment_status === "PAID" && (
+          <div className="mt-6">
+            {dispute ? (
+              <Card>
+                <CardContent className="space-y-2 py-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-foreground">Reported: {dispute.reason}</p>
+                    <Badge variant="outline" className="capitalize">
+                      {dispute.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{dispute.description}</p>
+                  {dispute.admin_response && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium">Response:</span> {dispute.admin_response}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <DisputeForm orderId={order.id} />
+            )}
+          </div>
+        )}
 
         <Button variant="outline" className="mt-6" asChild>
           <Link href="/marketplace">Continue shopping</Link>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/data/current-user";
 import { signOut } from "@/lib/actions/auth";
 import { Logo } from "@/components/brand/logo";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -20,6 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Logo />
           </Link>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <Badge>Admin</Badge>
             <span className="hidden text-sm text-muted-foreground sm:inline">{user.name}</span>
             <form action={signOut}>

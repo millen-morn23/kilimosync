@@ -83,14 +83,17 @@ not just handled — is the longer-term fix and is tracked in
 ## What's implemented vs. planned
 
 See `docs/ROADMAP.md` for the phase-by-phase breakdown. As of this
-commit, Phases 1–4 are implemented — branding, schema, RLS, auth, farmer
+commit, Phases 1–5 are implemented — branding, schema, RLS, auth, farmer
 verification, marketing site, farmer product CRUD with image upload,
 marketplace search/filters, cart, checkout, M-PESA STK push and callback
 handling with atomic inventory deduction, admin payment reconciliation,
-and KilimoSync AI (tool-calling chat for buyer/farmer/admin). Phases 3
-and 4 are code-complete but unexercised against a real backend — no
-Daraja sandbox, live Supabase project, or Anthropic API key exists in
-this environment, so neither a real payment nor a real AI conversation
-has happened yet. See `docs/ROADMAP.md` Phase 3/4 for exactly what each
-needs before being called done. Full admin operations (disputes,
-analytics) and Phase 5 (notifications, reviews) are not yet built.
+KilimoSync AI (tool-calling chat for buyer/farmer/admin), and order
+lifecycle operations (farmer/admin status progression, real notifications
+across every role, reviews, disputes). Phases 3 and 4 are code-complete
+but unexercised against a real backend — no Daraja sandbox, live Supabase
+project, or Anthropic API key exists in this environment, so neither a
+real payment nor a real AI conversation has happened yet; Phase 5's new
+RLS policy and trigger (`0008_orders_lifecycle.sql`) are unverified for
+the same reason. See `docs/ROADMAP.md` for exactly what each phase needs
+before being called done. Platform-wide admin analytics and Phase 6
+(transporter/agent/B2B expansion) are not built.

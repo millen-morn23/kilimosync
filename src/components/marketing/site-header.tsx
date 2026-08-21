@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, ShoppingCart, X } from "lucide-react";
+import { Bell, Menu, ShoppingCart, X } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,12 @@ export function SiteHeader({
   isAuthenticated = false,
   dashboardHref = "/dashboard",
   cartItemCount,
+  unreadNotificationCount,
 }: {
   isAuthenticated?: boolean;
   dashboardHref?: string;
   cartItemCount?: number;
+  unreadNotificationCount?: number;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -47,6 +49,18 @@ export function SiteHeader({
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
+          {typeof unreadNotificationCount === "number" && (
+            <Button variant="ghost" size="icon" asChild aria-label="Notifications">
+              <Link href="/notifications" className="relative">
+                <Bell />
+                {unreadNotificationCount > 0 && (
+                  <Badge className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]">
+                    {unreadNotificationCount}
+                  </Badge>
+                )}
+              </Link>
+            </Button>
+          )}
           {typeof cartItemCount === "number" && (
             <Button variant="ghost" size="icon" asChild aria-label="Cart">
               <Link href="/cart" className="relative">
@@ -101,6 +115,13 @@ export function SiteHeader({
             ))}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
+            {typeof unreadNotificationCount === "number" && (
+              <Button variant="outline" asChild>
+                <Link href="/notifications" onClick={() => setOpen(false)}>
+                  Notifications{unreadNotificationCount > 0 ? ` (${unreadNotificationCount})` : ""}
+                </Link>
+              </Button>
+            )}
             {typeof cartItemCount === "number" && (
               <Button variant="outline" asChild>
                 <Link href="/cart" onClick={() => setOpen(false)}>

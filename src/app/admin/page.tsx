@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Receipt, Sparkles } from "lucide-react";
+import { ClipboardList, Receipt, ShieldAlert, Sparkles } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentStats } from "@/lib/data/payments";
@@ -15,6 +15,7 @@ export default async function AdminDashboardPage() {
     { count: farmers },
     { count: buyers },
     { count: verifiedFarmers },
+    { count: openDisputes },
     pendingFarmersRes,
     paymentStats,
   ] = await Promise.all([
@@ -25,6 +26,10 @@ export default async function AdminDashboardPage() {
         .from("farmer_profiles")
         .select("*", { count: "exact", head: true })
         .eq("verification_status", "verified"),
+      supabase
+        .from("disputes")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["open", "investigating"]),
       supabase
         .from("farmer_profiles")
         .select("id, farm_name, county, main_crops, created_at, users(name, email)")
@@ -41,6 +46,7 @@ export default async function AdminDashboardPage() {
     { label: "Successful payments", value: paymentStats.paid },
     { label: "Failed payments", value: paymentStats.failed },
     { label: "Gross transaction value", value: `KES ${paymentStats.grossTransactionValue.toFixed(2)}` },
+    { label: "Open disputes", value: openDisputes ?? 0 },
   ];
 
   const pendingFarmers = (pendingFarmersRes.data ?? []).map((f) => ({
@@ -103,10 +109,41 @@ export default async function AdminDashboardPage() {
         </Button>
       </div>
 
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Orders &amp; delivery</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Coordinate delivery for paid orders — see docs/ROADMAP.md Phase 6 for the planned
+            transporter role.
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/admin/orders">
+            <ClipboardList />
+            View orders
+          </Link>
+        </Button>
+      </div>
+
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Disputes</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Buyer-reported issues that need a response.
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/admin/disputes">
+            <ShieldAlert />
+            View disputes
+          </Link>
+        </Button>
+      </div>
+
       <Card className="mt-10">
         <CardContent className="py-8 text-sm text-muted-foreground">
-          Product/order management, disputes, and analytics dashboards are
-          launching in upcoming development phases (see docs/ROADMAP.md).
+          Product management and platform-wide analytics dashboards are
+          launching in an upcoming development phase (see docs/ROADMAP.md).
         </CardContent>
       </Card>
     </div>

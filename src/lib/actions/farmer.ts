@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createFarmerProfileSchema,
   parseMainCrops,
@@ -45,6 +46,19 @@ export async function createFarmerProfile(
       return { error: "You already have a farm profile." };
     }
     return { error: "Could not create your farm profile. Please try again." };
+  }
+
+  const admin = createAdminClient();
+  const { data: admins } = await admin.from("users").select("id").eq("role", "admin");
+  if (admins && admins.length > 0) {
+    await admin.from("notifications").insert(
+      admins.map((a) => ({
+        user_id: a.id,
+        type: "new_farmer_signup" as const,
+        title: "New farmer signed up",
+        message: `${farmName} in ${county} joined and is awaiting verification.`,
+      }))
+    );
   }
 
   revalidatePath("/dashboard/farmer");

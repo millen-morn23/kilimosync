@@ -108,12 +108,42 @@ in `docs/AI.md`'s table returns real data and that the hard constraints
 hold — particularly that `create_product_draft` never results in a
 listing existing until the farmer submits the pre-filled form themselves.
 
-## Phase 5 — Operations
+## Phase 5 — Operations ✅
 
-Order status notifications (buyer/farmer/admin, using the `notifications`
-table that already exists), reviews (one per completed order item — schema
-already enforces this), disputes workflow, delivery coordination UI over
-the existing `deliveries` table.
+- **Order lifecycle:** a farmer can move their own paid order
+  `CONFIRMED → PREPARING → READY_FOR_DELIVERY`
+  (`/dashboard/farmer/orders`); an admin takes it from there,
+  `→ OUT_FOR_DELIVERY → DELIVERED → COMPLETED` (`/admin/orders`), which
+  also upserts a `deliveries` row. All enforced in Postgres, not just the
+  UI — `orders_update_farmer_of_order` policy +
+  `guard_order_status_update()` trigger (`0008_orders_lifecycle.sql`).
+- **Notifications, for real:** a generic `notify_order_status_change`
+  trigger fires a buyer notification on every `order_status` change
+  regardless of which code path caused it (farmer, admin, or the M-PESA
+  functions), so this couldn't drift out of sync the way a
+  remember-to-call-it-everywhere approach would. Buyer also gets
+  payment-result notifications; farmer gets new-order and low-stock
+  alerts (extended into `confirm_mpesa_payment()`/`fail_mpesa_payment()`);
+  admin gets new-farmer-signup and dispute-opened alerts. A bell icon
+  with unread count sits in every header; `/notifications` lists and
+  marks them read.
+- **Reviews:** `/orders/[id]` shows a rating form per line item once an
+  order is `COMPLETED` (schema already prevented duplicates and
+  non-completed reviews — Phase 5 just adds the UI/action); ratings show
+  on `/marketplace/[slug]`.
+- **Disputes:** a buyer can report a problem from a paid order
+  (`/orders/[id]`); `/admin/disputes` lists them with a respond/resolve
+  flow that notifies the buyer and writes an `audit_logs` row.
+
+**Not done:** none of this has been exercised against a live Supabase
+project — same caveat as every prior phase in this environment. The
+`guard_order_status_update()` trigger's `service_role` bypass (needed so
+the M-PESA functions' own order updates don't get rejected by the
+farmer/admin check meant for human actors — see `docs/DATABASE.md`) is
+new, non-obvious code and is the single highest-value thing to verify
+first once a live project exists: confirm a successful M-PESA payment
+still correctly flips `order_status` to `CONFIRMED` after this change.
+No refund flow exists (`order_status = 'REFUNDED'` has no code path).
 
 ## Phase 6 — Expansion (not built; schema allows it)
 

@@ -66,6 +66,25 @@ These are negative-path tests: each must **fail**.
     (`MPESA_CALLBACK_SECRET`) is processed (should be rejected with 401).
 13. A non-admin can `SELECT` from `ai_usage_logs` (should fail —
     `ai_usage_logs_admin_select` in `0007_ai.sql`).
+14. Farmer A (of order O) can set `orders.order_status` on O directly to
+    `DELIVERED` or `COMPLETED` (should fail — only `CONFIRMED →
+    PREPARING → READY_FOR_DELIVERY` is legal for a farmer;
+    `guard_order_status_update()` in `0008_orders_lifecycle.sql`).
+15. Farmer A (of order O) can, in the same `UPDATE`, change
+    `order_status` to a legal value *and* change `orders.total_amount`
+    (should fail entirely — the trigger rejects any column change beyond
+    `order_status`, not just the illegal ones).
+16. Farmer B (not on order O) can `UPDATE` O's `order_status` at all
+    (should fail — `orders_update_farmer_of_order` policy's `USING`
+    clause, before the trigger even runs).
+17. **Positive-path, not negative:** a successful `confirm_mpesa_payment()`
+    call (via the service-role client, as the M-PESA callback route
+    would call it) still correctly sets `order_status = 'CONFIRMED'`.
+    This one must **pass** — it's the regression test for the
+    `session_user = 'service_role'` bypass in
+    `guard_order_status_update()` (see `docs/DATABASE.md` §Row Level
+    Security). Get this wrong and Phase 3 payments silently stop
+    confirming orders while still charging the buyer.
 
 Each should be written as: authenticate as the "attacker" role via the
 Supabase JS client (anon key + password), attempt the operation, assert
@@ -74,12 +93,17 @@ it's rejected by RLS (empty result set for `SELECT`, error for
 
 ### End-to-end
 
-- **Farmer:** sign up → email confirm → create farm profile → create
-  product listing (Phase 2) → receive order (Phase 3) → (Phase 5) order
-  marked completed.
+- **Farmer:** sign up → email confirm → create farm profile (admin gets a
+  new-farmer-signup notification) → create product listing (Phase 2) →
+  receive order (Phase 3; gets a new-order + low-stock notification if
+  applicable) → mark preparing → mark ready for delivery (Phase 5; buyer
+  gets a notification at each step).
 - **Buyer:** sign up → browse (Phase 2) → add to cart (Phase 2) →
   checkout (Phase 2) → M-PESA STK push (Phase 3) → order confirmed
-  (Phase 3) → (Phase 5) order delivered/completed.
+  (Phase 3, gets a payment-successful + order-confirmed notification) →
+  admin marks out for delivery → delivered → completed (Phase 5) → rate
+  the product → optionally open a dispute instead and see it resolved by
+  an admin.
 
 ## M-PESA test plan (Phase 3 — built, not yet run against sandbox)
 

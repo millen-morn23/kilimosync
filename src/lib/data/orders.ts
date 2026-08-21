@@ -11,6 +11,7 @@ export type OrderListItem = {
 
 export type OrderItemDetail = {
   id: string;
+  product_id: string | null;
   product_name_snapshot: string;
   price_at_purchase: number;
   quantity: number;
@@ -79,7 +80,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
 
   const { data: items } = await supabase
     .from("order_items")
-    .select("id, product_name_snapshot, price_at_purchase, quantity, subtotal, farmer_id")
+    .select("id, product_id, product_name_snapshot, price_at_purchase, quantity, subtotal, farmer_id")
     .eq("order_id", orderId);
 
   return { ...order, items: items ?? [] };
@@ -122,4 +123,63 @@ export async function getFarmerOrderLines(farmerId: string): Promise<FarmerOrder
       };
     })
     .filter((line): line is FarmerOrderLine => line !== null);
+}
+
+export type FarmerOrder = {
+  orderId: string;
+  orderCreatedAt: string;
+  orderStatus: string;
+  paymentStatus: string;
+  buyerName: string;
+  items: { productName: string; quantity: number; subtotal: number }[];
+  total: number;
+};
+
+/** Same underlying rows as getFarmerOrderLines, grouped by order for a per-order action UI. */
+export async function getFarmerOrders(farmerId: string): Promise<FarmerOrder[]> {
+  const lines = await getFarmerOrderLines(farmerId);
+  const byOrder = new Map<string, FarmerOrder>();
+
+  for (const line of lines) {
+    const existing = byOrder.get(line.orderId);
+    if (existing) {
+      existing.items.push({ productName: line.productName, quantity: line.quantity, subtotal: line.subtotal });
+      existing.total += line.subtotal;
+    } else {
+      byOrder.set(line.orderId, {
+        orderId: line.orderId,
+        orderCreatedAt: line.orderCreatedAt,
+        orderStatus: line.orderStatus,
+        paymentStatus: line.paymentStatus,
+        buyerName: line.buyerName,
+        items: [{ productName: line.productName, quantity: line.quantity, subtotal: line.subtotal }],
+        total: line.subtotal,
+      });
+    }
+  }
+
+  return [...byOrder.values()];
+}
+
+export type AdminOrderListItem = {
+  id: string;
+  buyer_name: string;
+  total_amount: number;
+  payment_status: string;
+  order_status: string;
+  delivery_county: string;
+  delivery_address: string;
+  created_at: string;
+};
+
+/** Orders that have been paid for — the admin delivery queue. RLS (is_admin()) is the real boundary. */
+export async function getAdminOrders(): Promise<AdminOrderListItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("orders")
+    .select("id, buyer_name, total_amount, payment_status, order_status, delivery_county, delivery_address, created_at")
+    .neq("payment_status", "PENDING")
+    .order("created_at", { ascending: false });
+
+  return data ?? [];
 }
