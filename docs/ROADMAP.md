@@ -56,15 +56,32 @@ Supabase backend, since none is connected to this environment. Sort by
 "popularity" from the original brief isn't implemented — there's no order
 data to rank by yet; only newest/price sort exist.
 
-## Phase 3 — Payments
+## Phase 3 — Payments ✅ (code complete; sandbox run still pending)
 
-Checkout already creates the order (Phase 2); this phase is purely the
-M-PESA Daraja sandbox integration exactly as specified in
-`docs/M-PESA.md`: STK push triggered from the existing order, callback
-handler, atomic inventory deduction via `deduct_product_inventory()`,
-payment reconciliation view for admin, the full M-PESA test plan in
-`docs/TESTING.md` passing against sandbox. Production Daraja credentials
-are configured only after this phase's tests pass.
+M-PESA Daraja integration built exactly as specified in `docs/M-PESA.md`:
+`src/lib/mpesa/` (OAuth token, STK push, callback parsing, phone
+normalization), `src/lib/actions/mpesa.ts` (`initiatePayment`,
+`getOrderPaymentStatus`), `src/app/api/mpesa/callback/route.ts`
+(shared-secret-checked callback handler), and three atomic Postgres
+functions in `supabase/migrations/0006_mpesa.sql`
+(`record_stk_initiation`, `confirm_mpesa_payment`, `fail_mpesa_payment`)
+that own every write to `payments`/`orders` money-lifecycle columns —
+buyers can't touch them directly (see that migration's header). The order
+page (`/orders/[id]`) now has a real "Pay with M-PESA" form that polls
+for the result instead of the Phase 2 placeholder text. `/admin/payments`
+adds reconciliation (counts, gross transaction value, per-payment list —
+also summarized on `/admin`).
+
+**Not done:** the full flow has never run against Daraja sandbox — this
+environment has neither sandbox credentials nor a live Supabase project,
+so `docs/TESTING.md` §M-PESA test plan is unexecuted by necessity, not by
+oversight. What has been verified: `npm run build`/`npm run lint` pass;
+the callback route was hit directly and confirmed to fail loudly
+(`SUPABASE_SERVICE_ROLE_KEY is not configured`) rather than silently
+succeed, when no backend is configured. Whoever picks this up next needs
+to: create a Daraja sandbox app, set the six `MPESA_*` env vars plus
+`MPESA_CALLBACK_SECRET`, expose a public callback URL (`ngrok` in dev),
+and run the full test plan before this phase can be called done.
 
 ## Phase 4 — Intelligence
 

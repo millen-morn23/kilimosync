@@ -1,12 +1,23 @@
+import Link from "next/link";
+import { Receipt } from "lucide-react";
+
 import { createClient } from "@/lib/supabase/server";
+import { getPaymentStats } from "@/lib/data/payments";
 import { PendingFarmersList } from "@/components/admin/pending-farmers-list";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
 
-  const [{ count: totalUsers }, { count: farmers }, { count: buyers }, { count: verifiedFarmers }, pendingFarmersRes] =
-    await Promise.all([
+  const [
+    { count: totalUsers },
+    { count: farmers },
+    { count: buyers },
+    { count: verifiedFarmers },
+    pendingFarmersRes,
+    paymentStats,
+  ] = await Promise.all([
       supabase.from("users").select("*", { count: "exact", head: true }),
       supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "farmer"),
       supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "buyer"),
@@ -19,6 +30,7 @@ export default async function AdminDashboardPage() {
         .select("id, farm_name, county, main_crops, created_at, users(name, email)")
         .eq("verification_status", "pending")
         .order("created_at", { ascending: true }),
+      getPaymentStats(),
     ]);
 
   const stats = [
@@ -26,6 +38,9 @@ export default async function AdminDashboardPage() {
     { label: "Farmers", value: farmers ?? 0 },
     { label: "Buyers", value: buyers ?? 0 },
     { label: "Verified farmers", value: verifiedFarmers ?? 0 },
+    { label: "Successful payments", value: paymentStats.paid },
+    { label: "Failed payments", value: paymentStats.failed },
+    { label: "Gross transaction value", value: `KES ${paymentStats.grossTransactionValue.toFixed(2)}` },
   ];
 
   const pendingFarmers = (pendingFarmersRes.data ?? []).map((f) => ({
@@ -58,9 +73,24 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Payments</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            M-PESA reconciliation — successful, failed, and pending payments.
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/admin/payments">
+            <Receipt />
+            View all payments
+          </Link>
+        </Button>
+      </div>
+
       <Card className="mt-10">
         <CardContent className="py-8 text-sm text-muted-foreground">
-          Product, order, payment and dispute management are launching in
+          Product/order management, disputes, and analytics are launching in
           upcoming development phases (see docs/ROADMAP.md).
         </CardContent>
       </Card>

@@ -547,6 +547,37 @@ export interface Database {
         Args: { p_product_id: string; p_quantity: number };
         Returns: boolean;
       };
+      record_stk_initiation: {
+        Args: {
+          p_order_id: string;
+          p_buyer_id: string;
+          p_amount: number;
+          p_phone: string;
+          p_merchant_request_id: string;
+          p_checkout_request_id: string;
+        };
+        Returns: string | null;
+      };
+      confirm_mpesa_payment: {
+        Args: {
+          p_checkout_request_id: string;
+          p_receipt: string;
+          p_result_code: number;
+          p_result_desc: string;
+          p_raw: Record<string, unknown>;
+        };
+        Returns: string;
+      };
+      fail_mpesa_payment: {
+        Args: {
+          p_checkout_request_id: string;
+          p_status: PaymentStatus;
+          p_result_code: number;
+          p_result_desc: string;
+          p_raw: Record<string, unknown>;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       user_role: UserRole;

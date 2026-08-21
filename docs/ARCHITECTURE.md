@@ -63,24 +63,32 @@ WHERE quantity_available >= quantity`, which Postgres executes atomically
 under row-level locking — the second concurrent caller's `WHERE` clause
 simply fails once the first has committed. This function is intentionally
 not exposed to the anon/authenticated roles (`REVOKE EXECUTE`); it is only
-ever invoked from the server-side M-PESA callback handler (Phase 3) using
-the service-role client, after payment is confirmed `PAID` — never at
-checkout, and never from client code.
+ever invoked from inside `confirm_mpesa_payment()`
+(`supabase/migrations/0006_mpesa.sql`), itself only callable by the
+service-role client from the M-PESA callback handler, after payment is
+confirmed `PAID` — never at checkout, and never from client code.
 
-**Known limitation (documented, not yet built):** between order creation
-(`PENDING_PAYMENT`) and STK callback, stock is not "held." If two buyers
-both complete payment for the last unit, the first deduction wins and the
-second fails safely (inventory never goes negative), but the second
-buyer's M-PESA payment has already succeeded. Phase 3 must handle this by
-flagging the order `DISPUTED` and creating an audit log entry for manual
-refund rather than silently failing — a short-lived inventory hold at
-STK-push time is the longer-term fix and is tracked in `docs/ROADMAP.md`.
+**Known limitation (implemented as designed, not a bug):** between order
+creation (`PENDING_PAYMENT`) and STK callback, stock is not "held." If two
+buyers both complete payment for the last unit, the first deduction wins
+and the second fails safely (inventory never goes negative), but the
+second buyer's M-PESA payment has already succeeded.
+`confirm_mpesa_payment()` handles exactly this: it sets `order_status =
+'DISPUTED'` instead of `'CONFIRMED'` and writes an `audit_logs` row for
+manual admin refund, rather than silently dropping the mismatch. A
+short-lived inventory hold at STK-push time — so this case becomes rarer,
+not just handled — is the longer-term fix and is tracked in
+`docs/ROADMAP.md`.
 
 ## What's implemented vs. planned
 
 See `docs/ROADMAP.md` for the phase-by-phase breakdown. As of this
-commit: Phase 1 (foundation) and Phase 2 (marketplace) are implemented —
-branding, schema, RLS, auth, farmer verification, marketing site, farmer
-product CRUD with image upload, marketplace search/filters, cart, and
-checkout (order creation only — no payment). M-PESA, AI, and full admin
-operations (payments, disputes, analytics) are not yet built.
+commit: Phase 1 (foundation), Phase 2 (marketplace), and Phase 3
+(M-PESA payments, code-complete) are implemented — branding, schema, RLS,
+auth, farmer verification, marketing site, farmer product CRUD with image
+upload, marketplace search/filters, cart, checkout, STK push, the
+callback handler, atomic inventory deduction on confirmed payment, and
+admin payment reconciliation. Phase 3's flow has not been run against a
+real Daraja sandbox or live Supabase project — see `docs/ROADMAP.md`
+Phase 3 for exactly what remains. KilimoSync AI and full admin operations
+(disputes, analytics) are not yet built.
