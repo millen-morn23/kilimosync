@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Receipt } from "lucide-react";
+import { Receipt, Sparkles } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentStats } from "@/lib/data/payments";
@@ -88,10 +88,25 @@ export default async function AdminDashboardPage() {
         </Button>
       </div>
 
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">KilimoSync AI</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ask about platform-wide activity in plain language.
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/admin/assistant">
+            <Sparkles />
+            Open assistant
+          </Link>
+        </Button>
+      </div>
+
       <Card className="mt-10">
         <CardContent className="py-8 text-sm text-muted-foreground">
-          Product/order management, disputes, and analytics are launching in
-          upcoming development phases (see docs/ROADMAP.md).
+          Product/order management, disputes, and analytics dashboards are
+          launching in upcoming development phases (see docs/ROADMAP.md).
         </CardContent>
       </Card>
     </div>

@@ -83,12 +83,14 @@ not just handled — is the longer-term fix and is tracked in
 ## What's implemented vs. planned
 
 See `docs/ROADMAP.md` for the phase-by-phase breakdown. As of this
-commit: Phase 1 (foundation), Phase 2 (marketplace), and Phase 3
-(M-PESA payments, code-complete) are implemented — branding, schema, RLS,
-auth, farmer verification, marketing site, farmer product CRUD with image
-upload, marketplace search/filters, cart, checkout, STK push, the
-callback handler, atomic inventory deduction on confirmed payment, and
-admin payment reconciliation. Phase 3's flow has not been run against a
-real Daraja sandbox or live Supabase project — see `docs/ROADMAP.md`
-Phase 3 for exactly what remains. KilimoSync AI and full admin operations
-(disputes, analytics) are not yet built.
+commit, Phases 1–4 are implemented — branding, schema, RLS, auth, farmer
+verification, marketing site, farmer product CRUD with image upload,
+marketplace search/filters, cart, checkout, M-PESA STK push and callback
+handling with atomic inventory deduction, admin payment reconciliation,
+and KilimoSync AI (tool-calling chat for buyer/farmer/admin). Phases 3
+and 4 are code-complete but unexercised against a real backend — no
+Daraja sandbox, live Supabase project, or Anthropic API key exists in
+this environment, so neither a real payment nor a real AI conversation
+has happened yet. See `docs/ROADMAP.md` Phase 3/4 for exactly what each
+needs before being called done. Full admin operations (disputes,
+analytics) and Phase 5 (notifications, reviews) are not yet built.

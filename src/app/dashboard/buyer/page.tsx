@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ClipboardList, ShoppingBasket, ShoppingCart } from "lucide-react";
+import { ClipboardList, ShoppingBasket, ShoppingCart, Sparkles } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/data/current-user";
 import { getBuyerOrders } from "@/lib/data/orders";
@@ -43,6 +43,12 @@ export default async function BuyerDashboardPage() {
           <Link href="/dashboard/buyer/orders">
             <ClipboardList />
             Order history
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/dashboard/assistant">
+            <Sparkles />
+            Ask KilimoSync AI
           </Link>
         </Button>
       </div>

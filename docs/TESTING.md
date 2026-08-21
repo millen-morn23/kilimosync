@@ -64,6 +64,8 @@ These are negative-path tests: each must **fail**.
     EXECUTE` in `0006_mpesa.sql`; these are service-role-only).
 12. A `POST` to `/api/mpesa/callback` without the correct `?token=`
     (`MPESA_CALLBACK_SECRET`) is processed (should be rejected with 401).
+13. A non-admin can `SELECT` from `ai_usage_logs` (should fail —
+    `ai_usage_logs_admin_select` in `0007_ai.sql`).
 
 Each should be written as: authenticate as the "attacker" role via the
 Supabase JS client (anon key + password), attempt the operation, assert
@@ -106,6 +108,38 @@ oversold order at callback time (assert `order_status` becomes
 callback payload matching Safaricom's actual response shape — never
 simulate success by directly setting `payments.status = 'PAID'` in a test
 that's meant to validate the callback handler itself.
+
+## AI test plan (Phase 4 — built, never run against a live provider)
+
+`src/lib/ai/` and `/api/ai/chat` are implemented but no request has ever
+reached Claude — this environment has no `ANTHROPIC_API_KEY`. Before this
+phase can be called done:
+
+- Each tool in `docs/AI.md`'s table, called as its intended role, returns
+  real data matching what that role's own dashboard pages show — not a
+  plausible-sounding approximation.
+- A buyer asking about another buyer's order gets no data (no tool
+  accepts an id for this — confirm the model can't work around that by,
+  say, asking `get_user_orders` with a crafted argument, since that tool
+  takes no arguments at all).
+- A farmer's `create_product_draft` request never results in a row in
+  `products` — only a draft object returned to the chat, pre-filling
+  `/dashboard/farmer/products/new` for the farmer to submit themselves.
+- An admin's `get_platform_analytics` numbers match what `/admin` itself
+  shows for the same moment.
+- A buyer or farmer asking an admin-scoped question ("how many farmers
+  are pending verification") gets a clear "I can't help with that" rather
+  than the model attempting to call a tool it wasn't given.
+- Sending 9 messages inside 60 seconds as one user: the 9th is rejected
+  with 429, not silently queued or dropped.
+- A message over 1000 characters, or a request with more than 20 history
+  messages, is rejected by the Zod schema in `/api/ai/chat` before
+  reaching the model.
+- With `ANTHROPIC_API_KEY` unset or invalid, the chat UI shows the
+  generic "temporarily unavailable" message — never a raw provider error
+  or a stack trace.
+- Every request above produces exactly one `ai_usage_logs` row, readable
+  by an admin and by no one else (see RLS test 13 above).
 
 ## Before declaring any feature "done"
 

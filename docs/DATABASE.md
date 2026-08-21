@@ -22,6 +22,7 @@ regenerate it from the live project once one exists (see `CLAUDE.md`).
 | `disputes` | Buyer-raised issue on an order | Buyer/involved farmer/admin read; only admin can update status. |
 | `audit_logs` | Sensitive-action trail | Admin read only; no client insert policy — always written via the service-role client from server actions, after the actor's admin status has already been verified through the RLS-respecting client. |
 | `platform_settings` | Singleton row, transaction fee % | Read by any authenticated user (needed to show the fee at checkout); admin-only update. |
+| `ai_usage_logs` | KilimoSync AI request log | Admin read only (`0007_ai.sql`); written exclusively by `/api/ai/chat` via the service-role client, after identity is verified — doubles as the backing store for that endpoint's per-user rate limit. See `docs/AI.md`. |
 
 ## Status vocabularies
 

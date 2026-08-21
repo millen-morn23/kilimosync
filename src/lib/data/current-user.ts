@@ -4,7 +4,7 @@ import type { Database } from "@/lib/supabase/types";
 export type CurrentUser = Database["public"]["Tables"]["users"]["Row"];
 export type FarmerProfile = Database["public"]["Tables"]["farmer_profiles"]["Row"];
 
-function isSupabaseConfigured() {
+export function isSupabaseConfigured() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );

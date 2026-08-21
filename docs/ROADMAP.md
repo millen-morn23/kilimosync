@@ -83,11 +83,30 @@ to: create a Daraja sandbox app, set the six `MPESA_*` env vars plus
 `MPESA_CALLBACK_SECRET`, expose a public callback URL (`ngrok` in dev),
 and run the full test plan before this phase can be called done.
 
-## Phase 4 — Intelligence
+## Phase 4 — Intelligence ✅ (code complete; never run against Claude)
 
-KilimoSync AI per `docs/AI.md`: server-side tool-calling layer, buyer
-search/recommend tools, farmer listing-assistant tools (draft-then-confirm,
-never auto-publish), admin analytics tools, rate limiting and logging.
+KilimoSync AI built per `docs/AI.md`: server-side tool-calling layer
+(`src/lib/ai/`), buyer tools (`search_products`, `get_product`,
+`get_user_orders`), farmer tools (`get_farmer_products`,
+`get_farmer_sales`, `create_product_draft` — draft-then-confirm, the tool
+itself never writes to the database), admin tool
+(`get_platform_analytics`), a chat UI at `/dashboard/assistant` (buyer or
+farmer, role read from the session) and `/admin/assistant`, DB-backed
+rate limiting and full request logging (`ai_usage_logs`,
+`supabase/migrations/0007_ai.sql`).
+
+**Not done:** this environment has no `ANTHROPIC_API_KEY`, so no message
+has actually reached Claude — `runAgent()`'s tool-calling loop is
+unexercised beyond `npm run build`/`npm run lint` passing. What was
+verified directly: `getAiConfig()` returns a typed error instead of
+throwing when the key is missing, and hitting `/api/ai/chat` with no
+Supabase project configured returns a clean 401 (not a 500) — the same
+"fail loudly, never fake success" check applied to Phase 3. Whoever picks
+this up next needs to: set `ANTHROPIC_API_KEY` (and optionally
+`ANTHROPIC_MODEL`), sign in as each role, and manually verify each tool
+in `docs/AI.md`'s table returns real data and that the hard constraints
+hold — particularly that `create_product_draft` never results in a
+listing existing until the farmer submits the pre-filled form themselves.
 
 ## Phase 5 — Operations
 

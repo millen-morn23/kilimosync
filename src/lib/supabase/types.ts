@@ -540,6 +540,34 @@ export interface Database {
           },
         ];
       };
+      ai_usage_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          role: UserRole;
+          message_preview: string;
+          tool_calls: Record<string, unknown>[];
+          input_tokens: number | null;
+          output_tokens: number | null;
+          error: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["ai_usage_logs"]["Row"]> & {
+          user_id: string;
+          role: UserRole;
+          message_preview: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["ai_usage_logs"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_logs_user_id_fkey",
+            columns: ["user_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {

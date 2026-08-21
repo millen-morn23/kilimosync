@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList, Package, Plus } from "lucide-react";
+import { ClipboardList, Package, Plus, Sparkles } from "lucide-react";
 
 import { getCurrentUser, getOwnFarmerProfile } from "@/lib/data/current-user";
 import { getOwnFarmerProducts } from "@/lib/data/products";
@@ -88,6 +88,12 @@ export default async function FarmerDashboardPage() {
           <Link href="/dashboard/farmer/orders">
             <ClipboardList />
             View orders
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/dashboard/assistant">
+            <Sparkles />
+            Ask KilimoSync AI
           </Link>
         </Button>
       </div>
