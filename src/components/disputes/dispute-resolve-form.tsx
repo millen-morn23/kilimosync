@@ -26,11 +26,13 @@ export function DisputeResolveForm({ disputeId }: { disputeId: string }) {
     router.refresh();
   }
 
+  const hasResponse = response.trim().length > 0;
+
   return (
     <div className="space-y-2">
       <Textarea
         rows={2}
-        placeholder="Response to the buyer (optional)"
+        placeholder="Response to the buyer (required to resolve or reject)"
         value={response}
         onChange={(e) => setResponse(e.target.value)}
       />
@@ -39,10 +41,10 @@ export function DisputeResolveForm({ disputeId }: { disputeId: string }) {
         <Button size="sm" variant="outline" disabled={!!submitting} onClick={() => act("investigating")}>
           Investigating
         </Button>
-        <Button size="sm" disabled={!!submitting} onClick={() => act("resolved")}>
+        <Button size="sm" disabled={!!submitting || !hasResponse} onClick={() => act("resolved")}>
           Mark resolved
         </Button>
-        <Button size="sm" variant="ghost" disabled={!!submitting} onClick={() => act("rejected")}>
+        <Button size="sm" variant="ghost" disabled={!!submitting || !hasResponse} onClick={() => act("rejected")}>
           Reject
         </Button>
       </div>

@@ -7,15 +7,23 @@ import { getNotifications } from "@/lib/data/notifications";
 import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { NotificationList } from "@/components/notifications/notification-list";
+import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Notifications" };
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/notifications");
 
-  const notifications = await getNotifications();
+  const params = await searchParams;
+  const page = Math.max(1, Number(params.page) || 1);
+
+  const { notifications, total, pageSize } = await getNotifications(page);
 
   return (
     <>
@@ -31,6 +39,14 @@ export default async function NotificationsPage() {
         ) : (
           <div className="mt-6">
             <NotificationList notifications={notifications} />
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              basePath="/notifications"
+              itemLabel="notifications"
+              searchParams={{}}
+            />
           </div>
         )}
       </main>

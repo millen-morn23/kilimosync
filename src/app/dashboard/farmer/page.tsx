@@ -6,8 +6,9 @@ import { getCurrentUser, getOwnFarmerProfile } from "@/lib/data/current-user";
 import { getOwnFarmerProducts } from "@/lib/data/products";
 import { getFarmerOrderLines } from "@/lib/data/orders";
 import { FarmerProfileForm } from "@/components/farmer/farmer-profile-form";
+import { FarmerProfileCard } from "@/components/farmer/farmer-profile-card";
 import { VerificationBadge } from "@/components/farmer/verification-badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default async function FarmerDashboardPage() {
@@ -98,25 +99,14 @@ export default async function FarmerDashboardPage() {
         </Button>
       </div>
 
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>{farmerProfile.farm_name}</CardTitle>
-          <CardDescription>
-            {farmerProfile.county}
-            {farmerProfile.subcounty ? `, ${farmerProfile.subcounty}` : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 pb-6">
-          {farmerProfile.main_crops.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Main crops: {farmerProfile.main_crops.join(", ")}
-            </p>
-          )}
-          {farmerProfile.farm_description && (
-            <p className="text-sm text-foreground">{farmerProfile.farm_description}</p>
-          )}
-        </CardContent>
-      </Card>
+      <FarmerProfileCard
+        farmName={farmerProfile.farm_name}
+        county={farmerProfile.county}
+        subcounty={farmerProfile.subcounty}
+        location={farmerProfile.location}
+        mainCrops={farmerProfile.main_crops}
+        farmDescription={farmerProfile.farm_description}
+      />
     </div>
   );
 }

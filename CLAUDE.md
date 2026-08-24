@@ -80,8 +80,12 @@ Never jump straight from UI generation to "production ready."
 - `src/components/{marketing,auth,farmer,admin,brand}` — feature UI.
 - `src/lib/supabase` — `client.ts` (browser), `server.ts` (RLS-respecting,
   Server Components/Actions), `admin.ts` (service-role, narrow use only).
-- `src/lib/actions` — server actions (`"use server"`), the only place
-  that should call `admin.ts`.
+- `src/lib/actions` — server actions (`"use server"`), the primary place
+  that calls `admin.ts`. The M-PESA callback route and the AI chat route
+  handler are the only other approved call sites — each independently
+  verifies the caller (a callback secret, or a re-checked session/role)
+  before touching the service-role client. See `src/lib/supabase/admin.ts`'s
+  own doc comment for the authoritative list.
 - `src/lib/validation` — Zod schemas shared by client forms and server
   actions.
 - `supabase/migrations` — the schema, in order. Never edit a merged

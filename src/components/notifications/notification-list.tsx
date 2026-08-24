@@ -2,8 +2,10 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { markAllNotificationsRead, markNotificationRead } from "@/lib/actions/notifications";
+import type { NotificationData } from "@/lib/data/notifications";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -12,6 +14,7 @@ type Notification = {
   type: string;
   title: string;
   message: string;
+  data: NotificationData;
   read_at: string | null;
   created_at: string;
 };
@@ -52,7 +55,13 @@ export function NotificationList({ notifications }: { notifications: Notificatio
           >
             <CardContent className="flex items-start justify-between gap-4 py-4">
               <div>
-                <p className="font-medium text-foreground">{n.title}</p>
+                {n.data?.order_id ? (
+                  <Link href={`/orders/${n.data.order_id}`} className="font-medium text-foreground hover:underline">
+                    {n.title}
+                  </Link>
+                ) : (
+                  <p className="font-medium text-foreground">{n.title}</p>
+                )}
                 <p className="mt-1 text-sm text-muted-foreground">{n.message}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {new Date(n.created_at).toLocaleString("en-KE")}

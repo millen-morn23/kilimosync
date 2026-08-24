@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   BadgeCheck,
   Bot,
@@ -7,10 +8,14 @@ import {
   ShoppingBasket,
 } from "lucide-react";
 
+import { getFeaturedProducts } from "@/lib/data/products";
+import { renderCategoryIcon, getCategoryTint } from "@/lib/category-icons";
 import { FeatureRow, FeatureVisualPanel } from "@/components/marketing/feature-row";
 import { Badge } from "@/components/ui/badge";
 
-export function ForFarmers() {
+export async function ForFarmers() {
+  const [sample] = await getFeaturedProducts(1);
+
   return (
     <FeatureRow
       id="for-farmers"
@@ -25,11 +30,33 @@ export function ForFarmers() {
       ]}
       visual={
         <FeatureVisualPanel>
-          <Sprout className="size-10 text-primary" />
-          <p className="mt-4 text-sm font-medium text-foreground">
-            Tomatoes — KES 80 / kg
-          </p>
-          <p className="text-sm text-muted-foreground">Available: 250 kg</p>
+          {sample ? (
+            <>
+              <span
+                className={`relative flex size-11 items-center justify-center overflow-hidden rounded-lg ${
+                  sample.images[0] ? "bg-accent/50" : getCategoryTint(sample.category_icon)
+                }`}
+              >
+                {sample.images[0] ? (
+                  <Image src={sample.images[0]} alt={sample.name} fill className="object-cover" unoptimized />
+                ) : (
+                  renderCategoryIcon(sample.category_icon, { className: "size-5", strokeWidth: 1.75 })
+                )}
+              </span>
+              <p className="mt-4 text-sm font-medium text-foreground">
+                {sample.name} — KES {sample.price} / {sample.price_unit}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {sample.quantity_available} {sample.quantity_unit} available · {sample.farm_name}
+              </p>
+            </>
+          ) : (
+            <>
+              <Sprout className="size-10 text-primary" />
+              <p className="mt-4 text-sm font-medium text-foreground">Your listing here</p>
+              <p className="text-sm text-muted-foreground">Be one of the first farmers to list</p>
+            </>
+          )}
         </FeatureVisualPanel>
       }
     />

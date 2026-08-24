@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Sprout } from "lucide-react";
 
 import { getMarketplaceProducts } from "@/lib/data/products";
-import { getCategories } from "@/lib/data/categories";
+import { getCategories, getCategoryProductCounts } from "@/lib/data/categories";
 import { KENYAN_COUNTIES } from "@/lib/validation/auth";
 import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { MarketplaceFiltersBar } from "@/components/marketplace/marketplace-filters";
+import { CategoryChips } from "@/components/marketplace/category-chips";
+import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Marketplace" };
@@ -19,7 +21,14 @@ type SearchParams = {
   minPrice?: string;
   maxPrice?: string;
   sort?: string;
+  page?: string;
 };
+
+function parsePositiveNumber(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
 
 export default async function MarketplacePage({
   searchParams,
@@ -29,18 +38,20 @@ export default async function MarketplacePage({
   const params = await searchParams;
   const sort =
     params.sort === "price_asc" || params.sort === "price_desc" ? params.sort : "newest";
+  const page = Math.max(1, Number(params.page) || 1);
 
-  const [products, categories] = await Promise.all([
+  const [{ products, total, pageSize }, categories, categoryCounts] = await Promise.all([
     getMarketplaceProducts({
       query: params.q,
       categoryId: params.category,
       county: params.county,
-      minPrice: params.minPrice ? Number(params.minPrice) : undefined,
-      maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
+      minPrice: parsePositiveNumber(params.minPrice),
+      maxPrice: parsePositiveNumber(params.maxPrice),
       sort,
-      limit: 48,
+      page,
     }),
     getCategories(),
+    getCategoryProductCounts(),
   ]);
 
   const hasFilters = Boolean(
@@ -56,7 +67,15 @@ export default async function MarketplacePage({
           Fresh produce listed directly by Kenyan farmers.
         </p>
 
-        <div className="mt-8">
+        <div className="mt-6">
+          <CategoryChips
+            categories={categories}
+            counts={categoryCounts}
+            activeCategoryId={params.category}
+          />
+        </div>
+
+        <div className="mt-6">
           <MarketplaceFiltersBar
             categories={categories}
             counties={KENYAN_COUNTIES}
@@ -84,11 +103,28 @@ export default async function MarketplacePage({
             </p>
           </Card>
         ) : (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <>
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              basePath="/marketplace"
+              itemLabel="listings"
+              searchParams={{
+                q: params.q,
+                category: params.category,
+                county: params.county,
+                minPrice: params.minPrice,
+                maxPrice: params.maxPrice,
+                sort: params.sort,
+              }}
+            />
+          </>
         )}
       </main>
       <SiteFooter />

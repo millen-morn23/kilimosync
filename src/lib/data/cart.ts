@@ -13,6 +13,7 @@ export type CartLine = {
   image: string | null;
   farmName: string;
   lineTotal: number;
+  isActive: boolean;
 };
 
 export type CartSummary = {
@@ -39,7 +40,7 @@ export async function getCart(): Promise<CartSummary> {
   const { data: items } = await supabase
     .from("cart_items")
     .select(
-      "id, quantity, products(id, name, slug, price, price_unit, quantity_available, min_order_quantity, images, farmer_profiles(farm_name))"
+      "id, quantity, products(id, name, slug, price, price_unit, quantity_available, min_order_quantity, images, status, farmer_profiles(farm_name))"
     )
     .eq("cart_id", cart.id);
 
@@ -66,6 +67,7 @@ export async function getCart(): Promise<CartSummary> {
         image: product.images?.[0] ?? null,
         farmName: farmer?.farm_name ?? "KilimoSync farmer",
         lineTotal: Math.round(product.price * item.quantity * 100) / 100,
+        isActive: product.status === "active",
       };
     })
     .filter((line): line is CartLine => line !== null);

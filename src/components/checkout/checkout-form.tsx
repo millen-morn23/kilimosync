@@ -21,7 +21,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function CheckoutForm({ defaultValues }: { defaultValues: Partial<CheckoutInput> }) {
+export function CheckoutForm({
+  defaultValues,
+  disabled,
+}: {
+  defaultValues: Partial<CheckoutInput>;
+  disabled?: boolean;
+}) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
@@ -107,7 +113,7 @@ export function CheckoutForm({ defaultValues }: { defaultValues: Partial<Checkou
         <Textarea id="deliveryNotes" rows={3} {...register("deliveryNotes")} />
       </div>
 
-      <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+      <Button type="submit" size="lg" className="w-full" disabled={submitting || disabled}>
         {submitting ? "Placing order…" : "Place order"}
       </Button>
     </form>

@@ -26,7 +26,8 @@ export async function createClient() {
             );
           } catch {
             // Called from a Server Component without a mutable cookie jar —
-            // safe to ignore because middleware refreshes the session.
+            // safe to ignore because src/proxy.ts refreshes the session on
+            // every request (Next 16 renamed the middleware convention file).
           }
         },
       },

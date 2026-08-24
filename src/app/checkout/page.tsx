@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/data/current-user";
 import { getCart } from "@/lib/data/cart";
@@ -42,15 +43,40 @@ export default async function CheckoutPage() {
   const platformFee = Math.round(cart.subtotal * (feePercent / 100) * 100) / 100;
   const total = Math.round((cart.subtotal + platformFee + FLAT_DELIVERY_FEE_KES) * 100) / 100;
 
+  const blockedLines = cart.lines.filter(
+    (line) => !line.isActive || line.quantity > line.quantityAvailable
+  );
+
   return (
     <>
       <SiteHeaderContainer />
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Checkout</h1>
 
+        {blockedLines.length > 0 && (
+          <Card className="mt-6 border-destructive/40 bg-destructive/5">
+            <CardContent className="flex items-start gap-3 py-4">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
+              <div className="text-sm">
+                <p className="font-medium text-foreground">Fix your cart before checking out</p>
+                <p className="mt-1 text-muted-foreground">
+                  {blockedLines.map((l) => l.name).join(", ")}{" "}
+                  {blockedLines.length === 1 ? "is" : "are"} no longer available in the requested
+                  quantity.{" "}
+                  <Link href="/cart" className="font-medium text-primary underline">
+                    Update your cart
+                  </Link>
+                  .
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
           <Card className="p-6">
             <CheckoutForm
+              disabled={blockedLines.length > 0}
               defaultValues={{
                 buyerName: user.name,
                 buyerPhone: user.phone ?? "",

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Info, XCircle } from "lucide-react";
 
-import { getCurrentUser } from "@/lib/data/current-user";
+import { getCurrentUser, getOwnFarmerProfile } from "@/lib/data/current-user";
 import { getOrderDetail } from "@/lib/data/orders";
 import { getReviewedOrderItemIds } from "@/lib/data/reviews";
 import { getDisputeForOrder } from "@/lib/data/disputes";
@@ -12,7 +12,7 @@ import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status
 import { PayWithMpesa } from "@/components/checkout/pay-with-mpesa";
 import { ReviewForm } from "@/components/reviews/review-form";
 import { DisputeForm } from "@/components/disputes/dispute-form";
-import { Badge } from "@/components/ui/badge";
+import { DisputeStatusCard } from "@/components/disputes/dispute-status-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -31,9 +31,14 @@ export default async function OrderDetailPage({
   if (!order) notFound();
 
   const isBuyer = order.buyer_id === user.id;
+  const farmerProfile = user.role === "farmer" ? await getOwnFarmerProfile() : null;
+  const isFarmerOfOrder = farmerProfile
+    ? order.items.some((item) => item.farmer_id === farmerProfile.id)
+    : false;
+
   const [reviewedItemIds, dispute] = await Promise.all([
     isBuyer && order.order_status === "COMPLETED" ? getReviewedOrderItemIds(order.id) : Promise.resolve(new Set<string>()),
-    isBuyer ? getDisputeForOrder(order.id) : Promise.resolve(null),
+    isBuyer || isFarmerOfOrder ? getDisputeForOrder(order.id) : Promise.resolve(null),
   ]);
 
   return (
@@ -168,26 +173,13 @@ export default async function OrderDetailPage({
 
         {isBuyer && order.payment_status === "PAID" && (
           <div className="mt-6">
-            {dispute ? (
-              <Card>
-                <CardContent className="space-y-2 py-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-foreground">Reported: {dispute.reason}</p>
-                    <Badge variant="outline" className="capitalize">
-                      {dispute.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{dispute.description}</p>
-                  {dispute.admin_response && (
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium">Response:</span> {dispute.admin_response}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <DisputeForm orderId={order.id} />
-            )}
+            {dispute ? <DisputeStatusCard dispute={dispute} /> : <DisputeForm orderId={order.id} />}
+          </div>
+        )}
+
+        {!isBuyer && isFarmerOfOrder && dispute && (
+          <div className="mt-6">
+            <DisputeStatusCard dispute={dispute} />
           </div>
         )}
 

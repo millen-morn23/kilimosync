@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { BadgeCheck, MapPin, Sprout, Star } from "lucide-react";
+import { BadgeCheck, MapPin, Star } from "lucide-react";
 
 import { getProductBySlug, getSimilarProducts } from "@/lib/data/products";
 import { getCurrentUser } from "@/lib/data/current-user";
 import { getReviewsForProduct } from "@/lib/data/reviews";
+import { renderCategoryIcon, getCategoryTint } from "@/lib/category-icons";
 import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { ProductCard } from "@/components/marketplace/product-card";
@@ -33,7 +34,11 @@ export default async function ProductDetailPage({
       <SiteHeaderContainer />
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-2">
-          <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-border bg-accent/40">
+          <div
+            className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-border ${
+              product.images[0] ? "bg-accent/40" : getCategoryTint(product.category_icon)
+            }`}
+          >
             {product.images[0] ? (
               <Image
                 src={product.images[0]}
@@ -43,7 +48,7 @@ export default async function ProductDetailPage({
                 unoptimized
               />
             ) : (
-              <Sprout className="size-16 text-primary/60" />
+              renderCategoryIcon(product.category_icon, { className: "size-16 opacity-70", strokeWidth: 1.5 })
             )}
           </div>
           <div>

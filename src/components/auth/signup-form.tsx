@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -30,7 +30,6 @@ export function SignUpForm() {
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<SignUpInput>({
@@ -38,7 +37,7 @@ export function SignUpForm() {
     defaultValues: { role: defaultRole },
   });
 
-  const role = watch("role");
+  const role = useWatch({ control, name: "role" });
 
   async function onSubmit(values: SignUpInput) {
     setSubmitting(true);

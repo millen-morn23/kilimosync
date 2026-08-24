@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { createFarmerProfile } from "@/lib/actions/farmer";
+import { createFarmerProfile, updateFarmerProfile } from "@/lib/actions/farmer";
 import { createFarmerProfileSchema, type CreateFarmerProfileInput } from "@/lib/validation/farmer";
 import { KENYAN_COUNTIES } from "@/lib/validation/auth";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function FarmerProfileForm() {
+export function FarmerProfileForm({
+  defaultValues,
+  onSaved,
+}: {
+  defaultValues?: Partial<CreateFarmerProfileInput>;
+  onSaved?: () => void;
+}) {
   const router = useRouter();
+  const isEdit = Boolean(defaultValues);
   const [submitting, setSubmitting] = useState(false);
 
   const {
@@ -32,19 +39,21 @@ export function FarmerProfileForm() {
     formState: { errors },
   } = useForm<CreateFarmerProfileInput>({
     resolver: zodResolver(createFarmerProfileSchema),
+    defaultValues,
   });
 
   async function onSubmit(values: CreateFarmerProfileInput) {
     setSubmitting(true);
-    const result = await createFarmerProfile(values);
+    const result = isEdit ? await updateFarmerProfile(values) : await createFarmerProfile(values);
     setSubmitting(false);
 
     if ("error" in result) {
       toast.error(result.error);
       return;
     }
-    toast.success("Farm profile created — pending verification");
+    toast.success(isEdit ? "Farm profile updated" : "Farm profile created — pending verification");
     router.refresh();
+    onSaved?.();
   }
 
   return (
@@ -108,7 +117,7 @@ export function FarmerProfileForm() {
       </div>
 
       <Button type="submit" disabled={submitting}>
-        {submitting ? "Saving…" : "Create farm profile"}
+        {submitting ? "Saving…" : isEdit ? "Save changes" : "Create farm profile"}
       </Button>
     </form>
   );

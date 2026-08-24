@@ -14,6 +14,7 @@ export type MarketplaceProduct = {
   farm_name: string;
   county: string;
   verification_status: string;
+  category_icon: string | null;
 };
 
 type FarmerProfileJoin = {
@@ -21,6 +22,8 @@ type FarmerProfileJoin = {
   county: string;
   verification_status: string;
 } | null;
+
+type CategoryJoin = { icon: string | null } | null;
 
 function mapProductRow(row: {
   id: string;
@@ -34,8 +37,10 @@ function mapProductRow(row: {
   images: string[] | null;
   farmer_id: string;
   farmer_profiles: FarmerProfileJoin | FarmerProfileJoin[];
+  categories: CategoryJoin | CategoryJoin[];
 }): MarketplaceProduct {
   const farmer = Array.isArray(row.farmer_profiles) ? row.farmer_profiles[0] : row.farmer_profiles;
+  const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
   return {
     id: row.id,
     name: row.name,
@@ -50,11 +55,23 @@ function mapProductRow(row: {
     farm_name: farmer?.farm_name ?? "KilimoSync farmer",
     county: farmer?.county ?? "",
     verification_status: farmer?.verification_status ?? "pending",
+    category_icon: category?.icon ?? null,
   };
 }
 
-const PRODUCT_SELECT =
-  "id, name, slug, price, price_unit, quantity_available, quantity_unit, min_order_quantity, images, farmer_id, farmer_profiles(farm_name, county, verification_status)";
+const PRODUCT_FIELDS =
+  "id, name, slug, price, price_unit, quantity_available, quantity_unit, min_order_quantity, images, farmer_id, categories(icon)";
+
+// Plain embed (left join) when county isn't filtered — every product has a
+// farmer_profiles row via FK, but `!inner` is only required to filter on it.
+const PRODUCT_SELECT = `${PRODUCT_FIELDS}, farmer_profiles(farm_name, county, verification_status)`;
+const PRODUCT_SELECT_COUNTY_FILTERED = `${PRODUCT_FIELDS}, farmer_profiles!inner(farm_name, county, verification_status)`;
+
+const DEFAULT_PAGE_SIZE = 24;
+
+function escapeIlike(value: string): string {
+  return value.replace(/[%_\\]/g, (char) => `\\${char}`);
+}
 
 /**
  * Real marketplace data only — never fabricated. Returns an empty list
@@ -62,7 +79,31 @@ const PRODUCT_SELECT =
  * configured yet or no products exist, rather than showing sample data.
  */
 export async function getFeaturedProducts(limit = 8): Promise<MarketplaceProduct[]> {
-  return getMarketplaceProducts({ limit });
+  const { products } = await getMarketplaceProducts({ pageSize: limit });
+  return products;
+}
+
+export type MarketplaceStats = {
+  productCount: number;
+  verifiedFarmerCount: number;
+};
+
+// Landing-page trust signals — real counts, not invented copy. Returns
+// zeros (rendered as an empty/quiet state by the caller) if Supabase isn't
+// configured yet, same convention as the rest of this file.
+export async function getMarketplaceStats(): Promise<MarketplaceStats> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return { productCount: 0, verifiedFarmerCount: 0 };
+
+  const supabase = await createClient();
+  const [{ count: productCount }, { count: verifiedFarmerCount }] = await Promise.all([
+    supabase.from("products").select("*", { count: "exact", head: true }).eq("status", "active"),
+    supabase
+      .from("farmer_profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("verification_status", "verified"),
+  ]);
+
+  return { productCount: productCount ?? 0, verifiedFarmerCount: verifiedFarmerCount ?? 0 };
 }
 
 export type MarketplaceFilters = {
@@ -72,28 +113,49 @@ export type MarketplaceFilters = {
   minPrice?: number;
   maxPrice?: number;
   sort?: "newest" | "price_asc" | "price_desc";
-  limit?: number;
+  page?: number;
+  pageSize?: number;
+};
+
+export type MarketplaceProductsResult = {
+  products: MarketplaceProduct[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export async function getMarketplaceProducts(
   filters: MarketplaceFilters = {}
-): Promise<MarketplaceProduct[]> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
+): Promise<MarketplaceProductsResult> {
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = filters.pageSize ?? DEFAULT_PAGE_SIZE;
+  const empty = { products: [], total: 0, page, pageSize };
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return empty;
 
   try {
     const supabase = await createClient();
-    let query = supabase.from("products").select(PRODUCT_SELECT).eq("status", "active");
+    let query = supabase
+      .from("products")
+      .select(filters.county ? PRODUCT_SELECT_COUNTY_FILTERED : PRODUCT_SELECT, {
+        count: "exact",
+      })
+      .eq("status", "active");
 
     if (filters.query) {
-      query = query.ilike("name", `%${filters.query}%`);
+      const term = escapeIlike(filters.query);
+      query = query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
     }
     if (filters.categoryId) {
       query = query.eq("category_id", filters.categoryId);
     }
-    if (typeof filters.minPrice === "number") {
+    if (filters.county) {
+      query = query.eq("farmer_profiles.county", filters.county);
+    }
+    if (typeof filters.minPrice === "number" && !Number.isNaN(filters.minPrice)) {
       query = query.gte("price", filters.minPrice);
     }
-    if (typeof filters.maxPrice === "number") {
+    if (typeof filters.maxPrice === "number" && !Number.isNaN(filters.maxPrice)) {
       query = query.lte("price", filters.maxPrice);
     }
 
@@ -101,25 +163,35 @@ export async function getMarketplaceProducts(
     else if (filters.sort === "price_desc") query = query.order("price", { ascending: false });
     else query = query.order("created_at", { ascending: false });
 
-    query = query.limit(filters.limit ?? 48);
+    const from = (page - 1) * pageSize;
+    query = query.range(from, from + pageSize - 1);
 
-    const { data, error } = await query;
-    if (error || !data) return [];
-
-    let mapped = data.map(mapProductRow);
-
-    // County filters against the joined farmer_profiles row, which
-    // PostgREST can't filter server-side through an embedded resource
-    // without a dedicated view — filtered in-memory instead, acceptable
-    // at MVP catalog sizes.
-    if (filters.county) {
-      mapped = mapped.filter((p) => p.county === filters.county);
+    const { data, error, count } = await query;
+    if (error || !data) {
+      if (error) console.error("getMarketplaceProducts query failed", error);
+      return empty;
     }
 
-    return mapped;
-  } catch {
-    return [];
+    return { products: data.map(mapProductRow), total: count ?? data.length, page, pageSize };
+  } catch (error) {
+    // Next's cookies()-based dynamic-usage bailout (thrown during the
+    // build's static-vs-dynamic probe of pages like "/") must propagate,
+    // not be swallowed as a query failure — Next relies on it to mark the
+    // route dynamic correctly.
+    if (isDynamicServerUsageError(error)) throw error;
+    console.error("getMarketplaceProducts threw", error);
+    return empty;
   }
+}
+
+function isDynamicServerUsageError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("DYNAMIC_SERVER_USAGE")
+  );
 }
 
 export type ProductDetail = MarketplaceProduct & {
@@ -132,13 +204,17 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .select(`${PRODUCT_SELECT}, description, harvest_date, category_id`)
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
 
+  // A real query failure (RLS misconfig, connection error) is not the same
+  // as "this slug doesn't exist" — surface it so the route's error.tsx
+  // handles it, instead of silently rendering a branded 404.
+  if (error) throw new Error(`getProductBySlug failed: ${error.message}`);
   if (!data) return null;
   return {
     ...mapProductRow(data),

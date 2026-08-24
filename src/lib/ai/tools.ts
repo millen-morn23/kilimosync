@@ -9,6 +9,7 @@ import {
   getProductBySlug,
   type MarketplaceFilters,
 } from "@/lib/data/products";
+import { getCategories } from "@/lib/data/categories";
 import { getBuyerOrders, getFarmerOrderLines } from "@/lib/data/orders";
 import { getPaymentStats } from "@/lib/data/payments";
 import type { UserRole } from "@/lib/supabase/types";
@@ -25,7 +26,6 @@ export type Tool = {
   description: string;
   roles: UserRole[];
   inputSchema: Record<string, unknown>;
-  zodSchema: z.ZodTypeAny;
   run: (input: unknown, ctx: ToolContext) => Promise<unknown>;
 };
 
@@ -54,17 +54,26 @@ const searchProducts: Tool = {
       maxPrice: { type: "number", description: "Maximum price in KES" },
     },
   },
-  zodSchema: searchProductsSchema,
   async run(rawInput) {
     const input = searchProductsSchema.parse(rawInput);
+
+    let categoryId: string | undefined;
+    if (input.category) {
+      const categories = await getCategories();
+      categoryId = categories.find(
+        (c) => c.name.toLowerCase() === input.category!.toLowerCase()
+      )?.id;
+    }
+
     const filters: MarketplaceFilters = {
       query: input.query,
+      categoryId,
       county: input.county,
       minPrice: input.minPrice,
       maxPrice: input.maxPrice,
-      limit: 10,
+      pageSize: 10,
     };
-    const products = await getMarketplaceProducts(filters);
+    const { products } = await getMarketplaceProducts(filters);
     return {
       count: products.length,
       products: products.map((p) => ({
@@ -92,7 +101,6 @@ const getProduct: Tool = {
     properties: { slug: { type: "string" } },
     required: ["slug"],
   },
-  zodSchema: getProductSchema,
   async run(rawInput) {
     const { slug } = getProductSchema.parse(rawInput);
     const product = await getProductBySlug(slug);
@@ -117,7 +125,6 @@ const getUserOrders: Tool = {
   description: "Get the signed-in buyer's own order history. Never accepts a buyer id — it's always the caller.",
   roles: ["buyer"],
   inputSchema: { type: "object", properties: {} },
-  zodSchema: z.object({}),
   async run(_input, ctx) {
     if (ctx.role !== "buyer") return { error: "Not available for this role." };
     const orders = await getBuyerOrders();
@@ -141,7 +148,6 @@ const getFarmerProducts: Tool = {
   description: "Get the signed-in farmer's own product listings, including paused/sold-out ones.",
   roles: ["farmer"],
   inputSchema: { type: "object", properties: {} },
-  zodSchema: z.object({}),
   async run(_input, ctx) {
     if (!ctx.farmerProfileId) return { error: "No farm profile yet." };
     const products = await getOwnFarmerProducts(ctx.farmerProfileId);
@@ -163,7 +169,6 @@ const getFarmerSales: Tool = {
   description: "Summarize the signed-in farmer's own order lines — counts and totals by payment status. Real data only.",
   roles: ["farmer"],
   inputSchema: { type: "object", properties: {} },
-  zodSchema: z.object({}),
   async run(_input, ctx) {
     if (!ctx.farmerProfileId) return { error: "No farm profile yet." };
     const lines = await getFarmerOrderLines(ctx.farmerProfileId);
@@ -198,7 +203,6 @@ const createProductDraft: Tool = {
     },
     required: ["name", "description"],
   },
-  zodSchema: createProductDraftSchema,
   async run(rawInput) {
     const draft = createProductDraftSchema.parse(rawInput);
     return { draft, note: "Not saved. The farmer must review and submit this in the product form." };
@@ -212,7 +216,6 @@ const getPlatformAnalytics: Tool = {
   description: "Get real, current platform-wide counts: users, farmers, buyers, verified farmers, and payment stats. Admin only, re-verified server-side.",
   roles: ["admin"],
   inputSchema: { type: "object", properties: {} },
-  zodSchema: z.object({}),
   async run(_input, ctx) {
     if (ctx.role !== "admin") return { error: "Admin access required." };
     const [{ count: totalUsers }, { count: farmers }, { count: buyers }, { count: verifiedFarmers }, paymentStats] =

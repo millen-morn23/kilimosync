@@ -41,8 +41,10 @@ export function CartLineItem({ line }: { line: CartLine }) {
     });
   }
 
+  const exceedsAvailable = quantity > line.quantityAvailable;
+
   return (
-    <div className="flex items-center gap-4 border-b border-border py-4 last:border-0">
+    <div className="flex flex-wrap items-center gap-4 border-b border-border py-4 last:border-0">
       <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-accent/50">
         {line.image ? (
           <Image src={line.image} alt={line.name} fill className="object-cover" unoptimized />
@@ -51,13 +53,24 @@ export function CartLineItem({ line }: { line: CartLine }) {
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-40 flex-1">
         <Link href={`/marketplace/${line.slug}`} className="font-medium text-foreground hover:underline">
           {line.name}
         </Link>
         <p className="text-sm text-muted-foreground">
           {line.farmName} · KES {line.price} / {line.priceUnit}
         </p>
+        {!line.isActive ? (
+          <p className="mt-1 text-xs text-destructive">
+            No longer available — please remove this item to check out
+          </p>
+        ) : (
+          exceedsAvailable && (
+            <p className="mt-1 text-xs text-destructive">
+              Only {line.quantityAvailable} {line.priceUnit} left — please reduce quantity
+            </p>
+          )
+        )}
       </div>
 
       <div className="flex items-center gap-1.5">
@@ -67,7 +80,7 @@ export function CartLineItem({ line }: { line: CartLine }) {
           size="icon"
           className="size-8"
           aria-label="Decrease quantity"
-          disabled={isPending || quantity <= line.minOrderQuantity}
+          disabled={isPending || !line.isActive || quantity <= line.minOrderQuantity}
           onClick={() => commitQuantity(quantity - 1)}
         >
           <Minus className="size-3.5" />
@@ -79,14 +92,14 @@ export function CartLineItem({ line }: { line: CartLine }) {
           size="icon"
           className="size-8"
           aria-label="Increase quantity"
-          disabled={isPending || quantity >= line.quantityAvailable}
+          disabled={isPending || !line.isActive || quantity >= line.quantityAvailable}
           onClick={() => commitQuantity(quantity + 1)}
         >
           <Plus className="size-3.5" />
         </Button>
       </div>
 
-      <p className="w-24 shrink-0 text-right font-medium text-foreground">
+      <p className="shrink-0 text-right font-medium text-foreground">
         KES {(line.price * quantity).toFixed(2)}
       </p>
 

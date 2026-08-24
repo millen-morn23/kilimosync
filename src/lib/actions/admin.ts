@@ -61,6 +61,7 @@ async function setFarmerVerification(
       status === "verified"
         ? `${farmer.farm_name} has been verified. Your listings will now show a verified badge.`
         : `${farmer.farm_name} was not approved for verification. Contact support for details.`,
+    data: { farmer_profile_id: farmerProfileId },
   });
 
   revalidatePath("/admin");

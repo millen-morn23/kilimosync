@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { getCategoryIcon } from "@/lib/category-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Category = { id: string; name: string };
+type Category = { id: string; name: string; icon: string | null };
 
 const ALL = "__all__";
 
@@ -61,10 +62,13 @@ export function MarketplaceFiltersBar({
       className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 lg:flex-row lg:items-end lg:gap-4"
     >
       <div className="flex-1 space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Search</label>
+        <label htmlFor="marketplace-q" className="text-xs font-medium text-muted-foreground">
+          Search
+        </label>
         <div className="relative">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id="marketplace-q"
             value={values.q}
             onChange={(e) => setValues((v) => ({ ...v, q: e.target.value }))}
             placeholder="Search produce…"
@@ -74,32 +78,40 @@ export function MarketplaceFiltersBar({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Category</label>
+        <label htmlFor="marketplace-category" className="text-xs font-medium text-muted-foreground">
+          Category
+        </label>
         <Select
           value={values.category || ALL}
           onValueChange={(v) => apply({ category: v === ALL ? "" : v })}
         >
-          <SelectTrigger className="w-full lg:w-44">
+          <SelectTrigger id="marketplace-category" className="w-full lg:w-44">
             <SelectValue placeholder="All categories" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All categories</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
+            {categories.map((c) => {
+              const Icon = getCategoryIcon(c.icon);
+              return (
+                <SelectItem key={c.id} value={c.id}>
+                  <Icon className="size-3.5 text-muted-foreground" />
+                  {c.name}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">County</label>
+        <label htmlFor="marketplace-county" className="text-xs font-medium text-muted-foreground">
+          County
+        </label>
         <Select
           value={values.county || ALL}
           onValueChange={(v) => apply({ county: v === ALL ? "" : v })}
         >
-          <SelectTrigger className="w-full lg:w-40">
+          <SelectTrigger id="marketplace-county" className="w-full lg:w-40">
             <SelectValue placeholder="All counties" />
           </SelectTrigger>
           <SelectContent>
@@ -115,8 +127,11 @@ export function MarketplaceFiltersBar({
 
       <div className="flex items-end gap-2">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Min KES</label>
+          <label htmlFor="marketplace-min-price" className="text-xs font-medium text-muted-foreground">
+            Min KES
+          </label>
           <Input
+            id="marketplace-min-price"
             type="number"
             min="0"
             className="w-24"
@@ -125,8 +140,11 @@ export function MarketplaceFiltersBar({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Max KES</label>
+          <label htmlFor="marketplace-max-price" className="text-xs font-medium text-muted-foreground">
+            Max KES
+          </label>
           <Input
+            id="marketplace-max-price"
             type="number"
             min="0"
             className="w-24"
@@ -137,9 +155,11 @@ export function MarketplaceFiltersBar({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Sort by</label>
+        <label htmlFor="marketplace-sort" className="text-xs font-medium text-muted-foreground">
+          Sort by
+        </label>
         <Select value={values.sort} onValueChange={(v) => apply({ sort: v })}>
-          <SelectTrigger className="w-full lg:w-36">
+          <SelectTrigger id="marketplace-sort" className="w-full lg:w-36">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

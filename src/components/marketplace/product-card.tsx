@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
-import { BadgeCheck, MapPin, Sprout } from "lucide-react";
+import { BadgeCheck, MapPin } from "lucide-react";
 
 import type { MarketplaceProduct } from "@/lib/data/products";
+import { renderCategoryIcon, getCategoryTint } from "@/lib/category-icons";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -10,7 +11,11 @@ export function ProductCard({ product }: { product: MarketplaceProduct }) {
   return (
     <Link href={`/marketplace/${product.slug}`}>
       <Card className="h-full gap-3 overflow-hidden py-0 transition-shadow hover:shadow-md">
-        <div className="relative flex aspect-square items-center justify-center bg-accent/50">
+        <div
+          className={`relative flex aspect-square items-center justify-center ${
+            product.images[0] ? "bg-accent/50" : getCategoryTint(product.category_icon)
+          }`}
+        >
           {product.images[0] ? (
             <Image
               src={product.images[0]}
@@ -20,7 +25,7 @@ export function ProductCard({ product }: { product: MarketplaceProduct }) {
               unoptimized
             />
           ) : (
-            <Sprout className="size-10 text-primary/60" />
+            renderCategoryIcon(product.category_icon, { className: "size-10 opacity-70", strokeWidth: 1.5 })
           )}
         </div>
         <div className="flex flex-col gap-2 px-4 pb-4">

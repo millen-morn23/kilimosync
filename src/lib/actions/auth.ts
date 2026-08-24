@@ -69,8 +69,13 @@ export async function requestPasswordReset(input: {
 
   const supabase = await createClient();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  // Supabase's SSR clients use the PKCE flow, so the emailed link carries a
+  // `code` that must be exchanged for a session via /auth/callback before
+  // the reset-password page can call updateUser() — redirecting straight
+  // to /auth/reset-password would leave the code unexchanged and no
+  // session, causing updateUser() to fail for every user.
   await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${siteUrl}/auth/reset-password`,
+    redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,
   });
 
   // Always report success, whether or not the email exists — this endpoint

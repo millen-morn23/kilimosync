@@ -1,6 +1,7 @@
 import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { ZodError } from "zod";
 
 import { getAiConfig, AI_LIMITS } from "@/lib/ai/config";
 import { systemPromptForRole } from "@/lib/ai/system-prompts";
@@ -67,7 +68,8 @@ export async function runAgent(
         messages,
         tools: anthropicTools,
       });
-    } catch {
+    } catch (err) {
+      console.error("KilimoSync AI: Anthropic request failed", err);
       return { ok: false, error: "KilimoSync AI is temporarily unavailable. Please try again." };
     }
 
@@ -118,13 +120,27 @@ export async function runAgent(
           tool_use_id: block.id,
           content: JSON.stringify(result),
         });
-      } catch {
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: JSON.stringify({ error: "Invalid input for this tool." }),
-          is_error: true,
-        });
+      } catch (err) {
+        // Only a Zod parse failure genuinely means "the model's input was
+        // invalid" — anything else (a Supabase error, a bug in a data
+        // helper) is a real backend failure and shouldn't be reported to
+        // the model as if the caller made a mistake.
+        if (err instanceof ZodError) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: JSON.stringify({ error: "Invalid input for this tool." }),
+            is_error: true,
+          });
+        } else {
+          console.error(`KilimoSync AI: tool "${tool.name}" failed`, err);
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: JSON.stringify({ error: "Temporarily unable to fetch that data. Try again shortly." }),
+            is_error: true,
+          });
+        }
       }
     }
 

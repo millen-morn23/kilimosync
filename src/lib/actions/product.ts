@@ -114,6 +114,18 @@ export async function updateProduct(
 
   const slug = await uniqueSlugFor(supabase, name, productId);
 
+  const { data: current } = await supabase
+    .from("products")
+    .select("status")
+    .eq("id", productId)
+    .eq("farmer_id", owner.farmerId)
+    .maybeSingle();
+
+  // Keep the listing's status consistent with a manual stock edit: an
+  // active listing edited down to zero stock should read as sold out, the
+  // same way public.deduct_product_inventory() marks it at checkout time.
+  const status = quantityAvailable <= 0 && current?.status === "active" ? "sold_out" : undefined;
+
   const { error } = await supabase
     .from("products")
     .update({
@@ -128,6 +140,7 @@ export async function updateProduct(
       min_order_quantity: minOrderQuantity,
       harvest_date: harvestDate || null,
       images,
+      ...(status ? { status } : {}),
     })
     .eq("id", productId)
     .eq("farmer_id", owner.farmerId);

@@ -9,9 +9,11 @@ import { openDisputeSchema, type OpenDisputeInput } from "@/lib/validation/dispu
 type ActionResult = { error: string } | { success: true };
 
 /**
- * RLS (disputes_insert_own_order, 0002_rls.sql) already restricts this to
- * the caller's own order — the .eq("buyer_id", ...) check here just
- * produces a clean error instead of a raw RLS rejection.
+ * RLS (disputes_insert_own_order, 0002_rls.sql / hardened in
+ * 0012_dispute_hardening.sql) already restricts this to the caller's own,
+ * paid order, and a partial unique index blocks a second open/investigating
+ * dispute on the same order — the checks here just turn those into clean
+ * error messages instead of a raw RLS/constraint rejection.
  */
 export async function openDispute(input: OpenDisputeInput): Promise<ActionResult> {
   const parsed = openDisputeSchema.safeParse(input);
@@ -27,11 +29,14 @@ export async function openDispute(input: OpenDisputeInput): Promise<ActionResult
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id")
+    .select("id, payment_status")
     .eq("id", parsed.data.orderId)
     .eq("buyer_id", user.id)
     .maybeSingle();
   if (!order) return { error: "Order not found." };
+  if (order.payment_status !== "PAID") {
+    return { error: "You can only report a problem on a paid order." };
+  }
 
   const { data: dispute, error } = await supabase
     .from("disputes")
@@ -44,6 +49,9 @@ export async function openDispute(input: OpenDisputeInput): Promise<ActionResult
     .select("id")
     .single();
 
+  if (error?.code === "23505") {
+    return { error: "There's already an open dispute on this order." };
+  }
   if (error || !dispute) return { error: "Could not open a dispute. Please try again." };
 
   const admin = createAdminClient();
@@ -55,6 +63,7 @@ export async function openDispute(input: OpenDisputeInput): Promise<ActionResult
         type: "dispute_opened" as const,
         title: "New dispute opened",
         message: `A buyer opened a dispute on order ${parsed.data.orderId.slice(0, 8)}: ${parsed.data.reason}`,
+        data: { order_id: parsed.data.orderId, dispute_id: dispute.id },
       }))
     );
   }
@@ -83,6 +92,12 @@ export async function resolveDispute(
   const { supabase, adminId } = await requireAdmin();
   if (!adminId) return { error: "Admin access required." };
 
+  // Backstop for the disputes_guard_resolution trigger (0012) — checked
+  // here first so the buyer-facing resolution reason is never empty.
+  if ((status === "resolved" || status === "rejected") && !adminResponse.trim()) {
+    return { error: "A response is required to resolve or reject a dispute." };
+  }
+
   const { data: dispute, error } = await supabase
     .from("disputes")
     .update({ status, admin_response: adminResponse || null })
@@ -106,6 +121,7 @@ export async function resolveDispute(
       type: "dispute_resolved",
       title: status === "resolved" ? "Your dispute was resolved" : "Your dispute was reviewed",
       message: adminResponse || "An admin has updated your dispute.",
+      data: { order_id: dispute.order_id, dispute_id: disputeId },
     });
   }
 

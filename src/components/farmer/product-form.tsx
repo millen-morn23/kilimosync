@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -39,7 +39,6 @@ export function ProductForm({
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<CreateProductInput>({
@@ -52,7 +51,7 @@ export function ProductForm({
     },
   });
 
-  const images = watch("images");
+  const images = useWatch({ control, name: "images" });
 
   async function onSubmit(values: CreateProductInput) {
     setSubmitting(true);

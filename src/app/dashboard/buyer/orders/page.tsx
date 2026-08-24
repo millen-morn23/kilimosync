@@ -1,12 +1,18 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ShoppingBasket } from "lucide-react";
 
+import { getCurrentUser } from "@/lib/data/current-user";
 import { getBuyerOrders } from "@/lib/data/orders";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default async function BuyerOrdersPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "buyer") redirect("/dashboard");
+
   const orders = await getBuyerOrders();
 
   return (
