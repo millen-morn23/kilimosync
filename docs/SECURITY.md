@@ -62,6 +62,32 @@ Public sign-up only ever produces `buyer` or `farmer` (`signUpSchema` in
 requested role to `buyer` — so even a crafted signup payload can't create
 an admin). Admin accounts are created directly against the database.
 
+**Bootstrapping the very first admin is not a plain `UPDATE`.**
+`guard_user_self_update` (`0002_rls.sql`) only allows a role change when
+`public.is_admin()` is already true for the caller, and that function
+reads `auth.uid()` — which is null for a raw psql/direct-Postgres session
+and for the `service_role` API client alike, since neither carries a real
+Supabase Auth JWT. Confirmed by testing: a `service_role` client update to
+`users.role` is rejected with "Only an admin may change a user role" even
+though `service_role` bypasses RLS — the trigger fires regardless of RLS.
+There is no admin who can promote the first admin, by design, so a plain
+`update public.users set role = 'admin' where email = '<demo-email>'`
+against a fresh project will fail. To bootstrap the first admin, connect
+with `SUPABASE_DB_URL` (a real Postgres superuser connection — direct
+`psql`/a Postgres client, not the Supabase JS client) and disable the
+trigger for the single statement:
+
+```sql
+alter table public.users disable trigger guard_user_self_update;
+update public.users set role = 'admin' where email = '<demo-email>';
+alter table public.users enable trigger guard_user_self_update;
+```
+
+Every admin after the first can instead be promoted from inside the app
+once one exists — see the "not yet built" note in `docs/ROADMAP.md` Phase
+5.5 for the still-missing admin-users UI that would make this a normal
+in-app action instead of a one-time manual step.
+
 ## Validation
 
 Every form has a Zod schema in `src/lib/validation/` used by both the

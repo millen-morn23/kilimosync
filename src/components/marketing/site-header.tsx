@@ -91,9 +91,10 @@ export function SiteHeader({
 
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-lg p-2 text-foreground lg:hidden"
+          className="inline-flex items-center justify-center rounded-lg p-2 text-foreground outline-none lg:hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
+          aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <X className="size-6" /> : <Menu className="size-6" />}
@@ -101,7 +102,7 @@ export function SiteHeader({
       </div>
 
       {open && (
-        <div className="border-t border-border px-4 pb-6 lg:hidden">
+        <div id="mobile-nav" className="border-t border-border px-4 pb-6 lg:hidden">
           <nav className="flex flex-col gap-1 pt-2" aria-label="Mobile">
             {NAV_LINKS.map((link) => (
               <Link

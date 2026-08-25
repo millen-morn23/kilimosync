@@ -101,3 +101,20 @@
     color: var(--foreground);
   }
 }
+
+/* Order receipt printing (src/components/checkout/order-receipt.tsx):
+   hide the rest of the page and print only the receipt card. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receipt-print-area,
+  .receipt-print-area * {
+    visibility: visible;
+  }
+  .receipt-print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+}

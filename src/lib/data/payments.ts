@@ -37,6 +37,27 @@ export async function getRecentPayments(limit = 50): Promise<PaymentRow[]> {
   return data ?? [];
 }
 
+/**
+ * The buyer's own most recent payment attempt for an order — used to
+ * render the receipt (mpesa_receipt_number, completed_at) once
+ * payment_status is PAID. RLS (`payments_select_buyer_or_admin`) already
+ * restricts this to the order's own buyer or an admin.
+ */
+export async function getOrderPayment(orderId: string): Promise<PaymentRow | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payments")
+    .select(
+      "id, order_id, amount, phone_number, status, mpesa_receipt_number, result_description, created_at, completed_at"
+    )
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data ?? null;
+}
+
 export async function getPaymentStats(): Promise<PaymentStats> {
   const supabase = await createClient();
   const { data } = await supabase.from("payments").select("status, amount");

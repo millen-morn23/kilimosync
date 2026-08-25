@@ -232,7 +232,7 @@ export async function getSimilarProducts(
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !categoryId) return [];
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .select(PRODUCT_SELECT)
     .eq("status", "active")
@@ -240,6 +240,7 @@ export async function getSimilarProducts(
     .neq("id", excludeProductId)
     .limit(limit);
 
+  if (error) console.error("getSimilarProducts query failed", error);
   return (data ?? []).map(mapProductRow);
 }
 

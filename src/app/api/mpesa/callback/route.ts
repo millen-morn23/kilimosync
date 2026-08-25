@@ -18,7 +18,15 @@ const ACK = NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
  */
 export async function POST(request: NextRequest) {
   const secret = process.env.MPESA_CALLBACK_SECRET;
-  if (secret && request.nextUrl.searchParams.get("token") !== secret) {
+  // Fail closed: an unset secret must never fall through to "no auth
+  // required" — that would let anyone POST fabricated payment
+  // confirmations. Misconfiguration is a 500 (fix the deployment), not an
+  // open endpoint.
+  if (!secret) {
+    console.error("MPESA_CALLBACK_SECRET is not configured — rejecting callback");
+    return NextResponse.json({ error: "M-PESA callback is not configured" }, { status: 500 });
+  }
+  if (request.nextUrl.searchParams.get("token") !== secret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

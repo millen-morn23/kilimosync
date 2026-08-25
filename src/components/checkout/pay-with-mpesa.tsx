@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Smartphone } from "lucide-react";
+import { Loader2, Smartphone, TriangleAlert } from "lucide-react";
 
 import { getOrderPaymentStatus, initiatePayment } from "@/lib/actions/mpesa";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,12 @@ export function PayWithMpesa({
   orderId,
   defaultPhone,
   initialStatus,
+  mpesaConfigured,
 }: {
   orderId: string;
   defaultPhone: string;
   initialStatus: string;
+  mpesaConfigured: boolean;
 }) {
   const router = useRouter();
   const [phone, setPhone] = useState(defaultPhone);
@@ -31,6 +33,11 @@ export function PayWithMpesa({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const pollStart = useRef<number>(0);
+  // A synchronous guard in addition to the disabled-button state: state
+  // updates only take effect on the next render, so a fast double-click
+  // (or double-tap on mobile) could otherwise slip a second submission
+  // through before the button visually disables.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (phase !== "waiting") return;
@@ -57,26 +64,60 @@ export function PayWithMpesa({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     setSubmitting(true);
+
     const result = await initiatePayment(orderId, phone);
+
+    submittingRef.current = false;
     setSubmitting(false);
 
     if ("error" in result) {
       setError(result.error);
       return;
     }
+    // Daraja accepted the STK push — this is NOT payment confirmation,
+    // only that the PIN prompt was sent. The database payment_status
+    // (polled below) is the only source of truth for what happens next.
     setPhase("waiting");
   }
 
-  if (phase === "waiting") {
+  if (phase === "waiting" || phase === "timed_out") {
     return (
       <Card className="border-primary/30 bg-primary/5">
         <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-          <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="font-medium text-foreground">Check your phone</p>
+          {phase === "waiting" ? (
+            <Loader2 className="size-8 animate-spin text-primary" />
+          ) : (
+            <TriangleAlert className="size-8 text-warning" />
+          )}
+          <p className="font-medium text-foreground">M-PESA prompt sent</p>
           <p className="max-w-xs text-sm text-muted-foreground">
-            Enter your M-PESA PIN on the prompt sent to {phone} to complete this payment.
+            Check your phone and enter your M-PESA PIN to complete the payment.
+          </p>
+          {phase === "waiting" ? (
+            <p className="text-sm font-medium text-primary">Waiting for payment confirmation…</p>
+          ) : (
+            <p className="max-w-xs text-sm text-warning">
+              We didn&apos;t hear back in time. If you already entered your PIN, this page will
+              update shortly on its own — otherwise nothing was charged and you can try again.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!mpesaConfigured) {
+    return (
+      <Card className="border-warning/30 bg-warning/5">
+        <CardContent className="flex gap-3 py-4">
+          <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" />
+          <p className="text-sm text-foreground">
+            M-PESA payments are not configured in this environment yet. You won&apos;t be able to
+            pay for this order until they are — nothing has been charged.
           </p>
         </CardContent>
       </Card>
@@ -91,13 +132,6 @@ export function PayWithMpesa({
           <p className="font-medium">Pay with M-PESA</p>
         </div>
 
-        {phase === "timed_out" && (
-          <p className="text-sm text-warning">
-            We didn&apos;t hear back in time. If you already entered your PIN, this page will
-            update shortly — otherwise, try again.
-          </p>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="mpesa-phone">M-PESA phone number</Label>
@@ -107,13 +141,26 @@ export function PayWithMpesa({
               placeholder="0712 345 678"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              disabled={submitting}
               required
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Sending prompt…" : "Pay now"}
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                Processing payment…
+              </span>
+            ) : (
+              "Pay now"
+            )}
           </Button>
+          {submitting && (
+            <p className="text-center text-xs text-muted-foreground">
+              Sending an M-PESA prompt to your phone…
+            </p>
+          )}
         </form>
       </CardContent>
     </Card>

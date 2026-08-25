@@ -6,10 +6,11 @@ export async function getCategories(): Promise<Category[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("categories")
     .select("id, name, slug, icon")
     .order("name");
+  if (error) console.error("getCategories query failed", error);
   return data ?? [];
 }
 

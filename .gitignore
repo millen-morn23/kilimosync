@@ -50,3 +50,14 @@ KILIMOSYNC_SUPABASE_CREDENTIALS.txt
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+anthropic-key.txt
+gemini-key.txt
+mpesa-consumer-key.txt
+mpesa-consumer-secret.txt
+mpesa-consumer-key.txt
+mpesa-consumer-secret.txt
+
+# Local M-PESA credentials
+mpesa-passkey.txt
+mpesa-consumer-key.txt
+mpesa-consumer-secret.txt

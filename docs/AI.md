@@ -1,24 +1,42 @@
 # KilimoSync AI
 
-**Status: implemented, not yet run against a live provider.** All the
-code below exists in this repository (`src/lib/ai/`,
-`src/app/api/ai/chat/route.ts`, `src/components/ai/ai-chat.tsx`,
-`supabase/migrations/0007_ai.sql`) and passes `npm run build`/`npm run
-lint`, but this environment has no `ANTHROPIC_API_KEY` and no live
-Supabase project, so **no conversation has actually been run against
-Claude** — see below for exactly what was and wasn't verified.
+**Status: implemented and live-verified against a real provider (Gemini)
+and a real Supabase project.** Two providers are implemented —
+`src/lib/ai/providers/gemini.ts` (Google's `@google/genai` SDK) and the
+original Anthropic implementation inlined in `src/lib/ai/agent.ts`
+(`@anthropic-ai/sdk`) — behind one dispatcher, `runAgent()` in
+`agent.ts`, which `src/app/api/ai/chat/route.ts` calls exactly as before.
+`getActiveAiProvider()` (`src/lib/ai/config.ts`) picks Gemini whenever
+`GEMINI_API_KEY` is set (free-tier, no paid credits required) and falls
+back to Anthropic automatically otherwise — Anthropic was switched to
+because it required paid API credits this environment didn't have; its
+implementation is untouched and still fully functional as a fallback,
+not dead code. Live-tested end-to-end: buyer → `/dashboard/assistant` →
+`/api/ai/chat` → Gemini → `search_products` tool → real Supabase data →
+Gemini's response → browser, with `ai_usage_logs` recording the request
+(role, tool calls, token counts) exactly as it did before the provider
+existed — same table, same insert code, no migration needed.
 
 ## Design
 
 A single server-side AI layer (`src/lib/ai/`) exposed to three surfaces
 (`/dashboard/assistant` for buyer and farmer — it reads the caller's own
 role and adjusts, `/admin/assistant` for admin) with different available
-tools per role. The browser never calls Anthropic directly and never
+tools per role. The browser never calls a provider directly and never
 holds an API key — every request goes through `src/app/api/ai/chat/route.ts`,
-a Route Handler that runs the tool-calling loop server-side
-(`src/lib/ai/agent.ts`, using `@anthropic-ai/sdk`) with `ANTHROPIC_API_KEY`
-(server-only, `.env.example`; model configurable via `ANTHROPIC_MODEL`,
-default `claude-sonnet-5`).
+a Route Handler that calls `runAgent()` (`src/lib/ai/agent.ts`), which
+runs the same tool-calling loop shape against whichever provider is
+active. `GEMINI_API_KEY`/`GEMINI_MODEL` (default `gemini-3.6-flash`) and
+`ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` (default `claude-sonnet-5`) are all
+server-only, declared in `.env.example`. Both providers share the exact
+same `tools.ts` (role-scoped tools, Zod-validated) and
+`system-prompts.ts` (anti-hallucination rules) unchanged — only the
+request/response translation to each provider's SDK differs
+(`agent.ts`'s `runAgentAnthropic` vs. `providers/gemini.ts`'s
+`runAgentGemini`). Gemini's `FunctionDeclaration.parametersJsonSchema`
+accepts the tools' existing plain JSON Schema `inputSchema` objects
+as-is, the same way Anthropic's `input_schema` does — no format
+conversion needed for either provider.
 
 ## Tool-based access, not raw DB access
 
@@ -96,12 +114,13 @@ an explicit `{ error: ... }`/empty-result shape — never a fabricated stand-in.
   any error) — admin-readable only (`ai_usage_logs_admin_select` RLS
   policy), written via the service-role client after identity is already
   verified through the RLS client, same pattern as `audit_logs`.
-- Structured error handling: a provider failure, timeout, or missing
-  `ANTHROPIC_API_KEY` returns a generic message
-  ("KilimoSync AI is temporarily unavailable...") — never a stack trace
-  or raw provider error to the user. Verified directly: with no
-  `ANTHROPIC_API_KEY` configured, `getAiConfig()` returns a typed error
-  instead of throwing, and hitting `/api/ai/chat` with no Supabase
-  project configured returns a clean 401 rather than a 500 (see
-  `docs/ROADMAP.md` Phase 4 for what this environment could and
-  couldn't verify).
+- Structured error handling: a provider failure, timeout, or having
+  neither `GEMINI_API_KEY` nor `ANTHROPIC_API_KEY` configured returns a
+  generic message ("KilimoSync AI is temporarily unavailable...") —
+  never a stack trace or raw provider error to the user. Verified
+  directly, twice: with no key of either provider configured,
+  `getActiveAiProvider()` returns a typed error instead of throwing; with
+  a real but out-of-credit `ANTHROPIC_API_KEY`, the route caught
+  Anthropic's real 400 and still returned the same clean generic message
+  (see `docs/ROADMAP.md` Phase 4). Hitting `/api/ai/chat` with no
+  Supabase project configured returns a clean 401 rather than a 500.

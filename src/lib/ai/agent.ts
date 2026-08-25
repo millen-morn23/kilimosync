@@ -3,37 +3,37 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { ZodError } from "zod";
 
-import { getAiConfig, AI_LIMITS } from "@/lib/ai/config";
+import { getAiConfig, getActiveAiProvider, AI_LIMITS } from "@/lib/ai/config";
 import { systemPromptForRole } from "@/lib/ai/system-prompts";
 import { findTool, toolsForRole, type ToolContext } from "@/lib/ai/tools";
+import { runAgentGemini } from "@/lib/ai/providers/gemini";
+import type { AgentResult, ChatMessage, ProductDraft } from "@/lib/ai/types";
 
-export type ChatMessage = { role: "user" | "assistant"; content: string };
-
-export type ProductDraft = {
-  name: string;
-  description: string;
-  suggestedPrice?: number;
-  suggestedUnit?: string;
-};
-
-export type AgentResult =
-  | {
-      ok: true;
-      reply: string;
-      draft: ProductDraft | null;
-      toolCalls: string[];
-      inputTokens: number;
-      outputTokens: number;
-    }
-  | { ok: false; error: string };
+export type { AgentResult, ChatMessage, ProductDraft };
 
 /**
- * Runs the tool-calling loop server-side. The model never sees a raw DB
- * client — every tool call goes through src/lib/ai/tools.ts, which
- * re-derives the caller's role/identity from ctx (never from anything the
- * model says) before touching data. See docs/AI.md.
+ * Entry point used by src/app/api/ai/chat/route.ts — unchanged signature
+ * regardless of which provider actually answers. Gemini is used whenever
+ * GEMINI_API_KEY is configured (free-tier, no paid credits required);
+ * Anthropic's implementation below is otherwise untouched and is used
+ * automatically as a real fallback when Gemini isn't configured. See
+ * getActiveAiProvider() in src/lib/ai/config.ts and docs/AI.md.
  */
-export async function runAgent(
+export async function runAgent(history: ChatMessage[], ctx: ToolContext): Promise<AgentResult> {
+  const provider = getActiveAiProvider();
+  if (typeof provider === "object") return { ok: false, error: provider.error };
+  if (provider === "gemini") return runAgentGemini(history, ctx);
+  return runAgentAnthropic(history, ctx);
+}
+
+/**
+ * Runs the tool-calling loop server-side against Anthropic. The model
+ * never sees a raw DB client — every tool call goes through
+ * src/lib/ai/tools.ts, which re-derives the caller's role/identity from
+ * ctx (never from anything the model says) before touching data. See
+ * docs/AI.md.
+ */
+async function runAgentAnthropic(
   history: ChatMessage[],
   ctx: ToolContext
 ): Promise<AgentResult> {

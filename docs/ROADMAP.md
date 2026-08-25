@@ -201,7 +201,17 @@ reasoned through," not "clicked through with a real account." The
 `CANCELLED`/`REFUNDED` order-status gap noted above is real and
 unresolved. Platform-wide admin *product* management (editing/removing
 any farmer's listing as an admin, distinct from the farmer's own product
-CRUD from Phase 2) is still not built.
+CRUD from Phase 2) is still not built. `users.is_suspended` is DB-level
+scaffolding only: the column and the `guard_user_self_update` trigger
+restricting it to admins both exist (`docs/DATABASE.md`), but there is no
+admin UI to set it and nothing anywhere in the app reads it to actually
+block a suspended account — the marketing copy's "Suspicious accounts can
+be suspended" is aspirational, not live. Wiring this up properly needs an
+admin users page, a real "account suspended" UX (not just a silent
+redirect loop against a still-valid auth session), and a sign-out path
+that clears cookies from a Server Action/Route Handler rather than a
+Server Component — deliberately deferred as its own scoped piece of work
+rather than rushed into this audit pass.
 
 ## Phase 6 — Expansion (not built; schema allows it)
 

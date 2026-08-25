@@ -41,3 +41,12 @@ export function getMpesaConfig(): MpesaConfig | { error: string } {
     callbackUrl,
   };
 }
+
+/**
+ * Cheap boolean check for UI gating (e.g. disabling "Pay with M-PESA"
+ * before the buyer fills in a phone number and submits) — avoids making
+ * them discover misconfiguration only after they submit the form.
+ */
+export function isMpesaConfigured(): boolean {
+  return !("error" in getMpesaConfig());
+}
