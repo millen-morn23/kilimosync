@@ -8,5 +8,6 @@ export default async function DashboardIndexPage() {
 
   if (user.role === "admin") redirect("/admin");
   if (user.role === "farmer") redirect("/dashboard/farmer");
+  if (user.role === "delivery_partner") redirect("/dashboard/delivery-partner");
   redirect("/dashboard/buyer");
 }

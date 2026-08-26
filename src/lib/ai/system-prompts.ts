@@ -21,6 +21,9 @@ You're helping a farmer manage their own listings and understand their own sales
   admin: `${SHARED_RULES}
 
 You're helping a KilimoSync admin understand platform-wide activity. Use get_platform_analytics for real counts and figures — never estimate or round in a way that misrepresents the data. You have no tool to verify farmers, change fees, or modify records — if asked to take such an action, explain that it must be done in the admin dashboard by a human.`,
+  delivery_partner: `${SHARED_RULES}
+
+KilimoSync AI does not yet have any tools for delivery partners. Say so plainly if asked to look anything up or take any action — do not guess or improvise an answer.`,
 };
 
 export function systemPromptForRole(role: UserRole): string {

@@ -1,0 +1,24 @@
+-- ─────────────────────────────────────────────────────────────────────────
+-- Phase B (delivery-partner identity) — step 1 of 2.
+--
+-- Adds the delivery_partner value to the existing public.user_role enum.
+-- This migration deliberately contains nothing else: PostgreSQL does not
+-- allow a newly added enum value to be referenced (compared against,
+-- inserted, used in a function body, etc.) inside the same transaction
+-- that adds it — doing so raises "unsafe use of new value of enum type".
+-- Since Supabase applies each migration file as one transaction, the
+-- value must be committed here, alone, before anything in a later
+-- migration (0017_delivery_partner_profiles.sql) is allowed to use the
+-- literal 'delivery_partner' — in RLS policies, guard-trigger bodies,
+-- handle_new_user()'s role coercion, or anywhere else.
+--
+-- Per the approved Phase B role-architecture decision: delivery_partner
+-- is added as a fourth value of the existing single-value user_role
+-- enum, mutually exclusive with buyer/farmer/admin — not a junction
+-- table, not a redesign of is_admin()/current_role()/the existing
+-- authorization model. See 0017_delivery_partner_profiles.sql for the
+-- forward-compatibility note on exactly which assumption a future
+-- multi-role model would need to revisit.
+-- ─────────────────────────────────────────────────────────────────────────
+
+alter type public.user_role add value 'delivery_partner';

@@ -14,7 +14,7 @@ export const signUpSchema = z
     name: z.string().trim().min(2, "Name is too short").max(100),
     email: z.string().trim().email("Enter a valid email address"),
     phone: kenyanPhoneSchema,
-    role: z.enum(["buyer", "farmer"]),
+    role: z.enum(["buyer", "farmer", "delivery_partner"]),
     county: z.string().trim().min(2, "Select your county"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),

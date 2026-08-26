@@ -4,6 +4,7 @@ import { BarChart3, ClipboardList, Receipt, ShieldAlert, Sparkles } from "lucide
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentStats } from "@/lib/data/payments";
 import { PendingFarmersList } from "@/components/admin/pending-farmers-list";
+import { PendingDeliveryPartnersList } from "@/components/admin/pending-delivery-partners-list";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -15,8 +16,11 @@ export default async function AdminDashboardPage() {
     { count: farmers },
     { count: buyers },
     { count: verifiedFarmers },
+    { count: deliveryPartners },
+    { count: verifiedDeliveryPartners },
     { count: openDisputes },
     pendingFarmersRes,
+    pendingDeliveryPartnersRes,
     paymentStats,
   ] = await Promise.all([
       supabase.from("users").select("*", { count: "exact", head: true }),
@@ -24,6 +28,11 @@ export default async function AdminDashboardPage() {
       supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "buyer"),
       supabase
         .from("farmer_profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("verification_status", "verified"),
+      supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "delivery_partner"),
+      supabase
+        .from("delivery_partner_profiles")
         .select("*", { count: "exact", head: true })
         .eq("verification_status", "verified"),
       supabase
@@ -35,6 +44,11 @@ export default async function AdminDashboardPage() {
         .select("id, farm_name, county, main_crops, created_at, users(name, email)")
         .eq("verification_status", "pending")
         .order("created_at", { ascending: true }),
+      supabase
+        .from("delivery_partner_profiles")
+        .select("id, vehicle_type, vehicle_registration, operating_county, created_at, users(name, email)")
+        .eq("verification_status", "pending")
+        .order("created_at", { ascending: true }),
       getPaymentStats(),
     ]);
 
@@ -43,6 +57,8 @@ export default async function AdminDashboardPage() {
     { label: "Farmers", value: farmers ?? 0 },
     { label: "Buyers", value: buyers ?? 0 },
     { label: "Verified farmers", value: verifiedFarmers ?? 0 },
+    { label: "Delivery partners", value: deliveryPartners ?? 0 },
+    { label: "Verified delivery partners", value: verifiedDeliveryPartners ?? 0 },
     { label: "Successful payments", value: paymentStats.paid },
     { label: "Failed payments", value: paymentStats.failed },
     { label: "Gross transaction value", value: `KES ${paymentStats.grossTransactionValue.toFixed(2)}` },
@@ -52,6 +68,11 @@ export default async function AdminDashboardPage() {
   const pendingFarmers = (pendingFarmersRes.data ?? []).map((f) => ({
     ...f,
     users: Array.isArray(f.users) ? f.users[0] ?? null : f.users,
+  }));
+
+  const pendingDeliveryPartners = (pendingDeliveryPartnersRes.data ?? []).map((p) => ({
+    ...p,
+    users: Array.isArray(p.users) ? p.users[0] ?? null : p.users,
   }));
 
   return (
@@ -92,6 +113,16 @@ export default async function AdminDashboardPage() {
         </p>
         <div className="mt-4">
           <PendingFarmersList farmers={pendingFarmers} />
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-foreground">Delivery partner verification queue</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Review new delivery partner applications before they&apos;re verified.
+        </p>
+        <div className="mt-4">
+          <PendingDeliveryPartnersList partners={pendingDeliveryPartners} />
         </div>
       </div>
 

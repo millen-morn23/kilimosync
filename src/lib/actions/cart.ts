@@ -53,7 +53,7 @@ export async function addToCart(productId: string, quantity: number): Promise<Ac
 
   const { data: product } = await supabase
     .from("products")
-    .select("quantity_available, min_order_quantity, status")
+    .select("quantity_available, min_order_quantity, status, farmer_id")
     .eq("id", productId)
     .maybeSingle();
 
@@ -68,6 +68,25 @@ export async function addToCart(productId: string, quantity: number): Promise<Ac
   }
 
   const cartId = await getOrCreateCartId(supabase, buyerId);
+
+  // Early, friendly warning only — one order = one farmer is actually
+  // enforced server-side at checkout (createOrder()) and, beneath that,
+  // by a database trigger on order_items. A cart is mutable, transient
+  // state, so this check can't be the real boundary; it just catches the
+  // common case before the buyer gets to checkout.
+  const { data: cartFarmerRows } = await supabase
+    .from("cart_items")
+    .select("products(farmer_id)")
+    .eq("cart_id", cartId);
+  const otherFarmerId = (cartFarmerRows ?? [])
+    .map((row) => (Array.isArray(row.products) ? row.products[0] : row.products)?.farmer_id)
+    .find((existingFarmerId) => existingFarmerId && existingFarmerId !== product.farmer_id);
+  if (otherFarmerId) {
+    return {
+      error:
+        "Your cart already has produce from a different farmer. Clear your cart or complete that order first before adding produce from another farm.",
+    };
+  }
 
   const { data: existingItem } = await supabase
     .from("cart_items")

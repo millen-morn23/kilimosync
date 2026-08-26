@@ -11,6 +11,13 @@ type ActionResult = { error: string } | { success: true; orderId: string };
  * availability check is re-derived from the database here — nothing from
  * the client is trusted for money math (see CLAUDE.md rule 3).
  *
+ * One order = one farmer (see supabase/migrations/0015_single_farmer_orders.sql):
+ * a cart spanning multiple farmers is rejected here rather than silently
+ * split. orders.farmer_id is the authoritative farmer relationship — set
+ * once, here, from the validated single-farmer cart — and every
+ * order_items row is checked against it by a database trigger, not the
+ * other way around.
+ *
  * This does NOT process payment and does NOT deduct inventory. M-PESA
  * (Phase 3) owns both of those, triggered only by a verified payment
  * callback — see docs/M-PESA.md. The order is created PENDING_PAYMENT and
@@ -72,6 +79,15 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult> {
     });
   }
 
+  const farmerIds = new Set(lines.map((l) => l.farmerId));
+  if (farmerIds.size > 1) {
+    return {
+      error:
+        "Your cart has produce from more than one farmer. Please check out each farm's items separately.",
+    };
+  }
+  const farmerId = lines[0].farmerId;
+
   const subtotal = round2(lines.reduce((sum, l) => sum + l.price * l.quantity, 0));
 
   const { data: settings } = await supabase
@@ -90,6 +106,7 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult> {
     .from("orders")
     .insert({
       buyer_id: user.id,
+      farmer_id: farmerId,
       subtotal,
       delivery_fee: deliveryFee,
       platform_fee: platformFee,

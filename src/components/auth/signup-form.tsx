@@ -22,7 +22,9 @@ import { cn } from "@/lib/utils";
 
 export function SignUpForm() {
   const searchParams = useSearchParams();
-  const defaultRole = searchParams.get("role") === "farmer" ? "farmer" : "buyer";
+  const requestedRole = searchParams.get("role");
+  const defaultRole =
+    requestedRole === "farmer" || requestedRole === "delivery_partner" ? requestedRole : "buyer";
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -65,7 +67,7 @@ export function SignUpForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <button
           type="button"
           onClick={() => setValue("role", "buyer")}
@@ -89,6 +91,18 @@ export function SignUpForm() {
           )}
         >
           I&apos;m a farmer
+        </button>
+        <button
+          type="button"
+          onClick={() => setValue("role", "delivery_partner")}
+          className={cn(
+            "rounded-lg border border-input px-4 py-3 text-sm font-medium transition-colors",
+            role === "delivery_partner"
+              ? "border-primary bg-primary/5 text-primary"
+              : "text-muted-foreground hover:bg-muted"
+          )}
+        >
+          I&apos;m a delivery partner
         </button>
       </div>
 

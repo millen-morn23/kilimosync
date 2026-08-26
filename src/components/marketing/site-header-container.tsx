@@ -11,7 +11,13 @@ export async function SiteHeaderContainer() {
   const unreadNotificationCount = user ? await getUnreadNotificationCount() : undefined;
 
   const dashboardHref =
-    user?.role === "admin" ? "/admin" : user?.role === "farmer" ? "/dashboard/farmer" : "/dashboard/buyer";
+    user?.role === "admin"
+      ? "/admin"
+      : user?.role === "farmer"
+        ? "/dashboard/farmer"
+        : user?.role === "delivery_partner"
+          ? "/dashboard/delivery-partner"
+          : "/dashboard/buyer";
 
   return (
     <SiteHeader

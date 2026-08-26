@@ -7,7 +7,7 @@
  *   npx supabase gen types typescript --project-id <ref> > src/lib/supabase/types.ts
  */
 
-export type UserRole = "buyer" | "farmer" | "admin";
+export type UserRole = "buyer" | "farmer" | "admin" | "delivery_partner";
 export type VerificationStatus = "pending" | "verified" | "rejected" | "suspended";
 export type ProductStatus = "active" | "paused" | "sold_out" | "deleted";
 export type PaymentStatus =
@@ -37,6 +37,8 @@ export type DeliveryStatus =
   | "DELIVERED"
   | "FAILED";
 export type DisputeStatus = "open" | "investigating" | "resolved" | "rejected";
+export type VehicleType = "bicycle" | "motorbike" | "car" | "van" | "on_foot";
+export type DeliveryAvailabilityStatus = "AVAILABLE" | "UNAVAILABLE";
 export type NotificationType =
   | "order_placed"
   | "payment_successful"
@@ -110,6 +112,43 @@ export interface Database {
           },
           {
             foreignKeyName: "farmer_profiles_verified_by_fkey",
+            columns: ["verified_by"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ];
+      };
+      delivery_partner_profiles: {
+        Row: {
+          id: string;
+          user_id: string;
+          vehicle_type: VehicleType;
+          vehicle_registration: string | null;
+          operating_county: string;
+          verification_status: VerificationStatus;
+          verified_at: string | null;
+          verified_by: string | null;
+          availability_status: DeliveryAvailabilityStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["delivery_partner_profiles"]["Row"]> & {
+          user_id: string;
+          vehicle_type: VehicleType;
+          operating_county: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["delivery_partner_profiles"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "delivery_partner_profiles_user_id_fkey",
+            columns: ["user_id"],
+            isOneToOne: true,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "delivery_partner_profiles_verified_by_fkey",
             columns: ["verified_by"],
             isOneToOne: false,
             referencedRelation: "users",
@@ -224,6 +263,7 @@ export interface Database {
         Row: {
           id: string;
           buyer_id: string;
+          farmer_id: string;
           subtotal: number;
           delivery_fee: number;
           platform_fee: number;
@@ -240,6 +280,7 @@ export interface Database {
         };
         Insert: Partial<Database["public"]["Tables"]["orders"]["Row"]> & {
           buyer_id: string;
+          farmer_id: string;
           subtotal: number;
           total_amount: number;
           delivery_county: string;
@@ -254,6 +295,13 @@ export interface Database {
             columns: ["buyer_id"],
             isOneToOne: false,
             referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "orders_farmer_id_fkey",
+            columns: ["farmer_id"],
+            isOneToOne: false,
+            referencedRelation: "farmer_profiles",
             referencedColumns: ["id"],
           },
         ];
@@ -696,6 +744,8 @@ export interface Database {
       delivery_status: DeliveryStatus;
       dispute_status: DisputeStatus;
       notification_type: NotificationType;
+      vehicle_type: VehicleType;
+      delivery_availability_status: DeliveryAvailabilityStatus;
     };
     CompositeTypes: Record<string, never>;
   };

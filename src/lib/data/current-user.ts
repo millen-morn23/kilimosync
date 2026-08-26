@@ -3,6 +3,7 @@ import type { Database } from "@/lib/supabase/types";
 
 export type CurrentUser = Database["public"]["Tables"]["users"]["Row"];
 export type FarmerProfile = Database["public"]["Tables"]["farmer_profiles"]["Row"];
+export type DeliveryPartnerProfile = Database["public"]["Tables"]["delivery_partner_profiles"]["Row"];
 
 export function isSupabaseConfigured() {
   return Boolean(
@@ -37,6 +38,23 @@ export async function getOwnFarmerProfile(): Promise<FarmerProfile | null> {
 
   const { data } = await supabase
     .from("farmer_profiles")
+    .select("*")
+    .eq("user_id", authUser.id)
+    .maybeSingle();
+  return data;
+}
+
+export async function getOwnDeliveryPartnerProfile(): Promise<DeliveryPartnerProfile | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return null;
+
+  const { data } = await supabase
+    .from("delivery_partner_profiles")
     .select("*")
     .eq("user_id", authUser.id)
     .maybeSingle();
