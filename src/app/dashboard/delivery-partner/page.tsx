@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation";
 
-import { getCurrentUser, getOwnDeliveryPartnerProfile } from "@/lib/data/current-user";
+import {
+  getActiveDelivery,
+  getAvailableDeliveryJobs,
+  getCurrentUser,
+  getOwnDeliveryPartnerProfile,
+} from "@/lib/data/current-user";
 import { DeliveryPartnerProfileForm } from "@/components/delivery-partner/profile-form";
 import { DeliveryPartnerProfileCard } from "@/components/delivery-partner/profile-card";
 import { AvailabilityToggle } from "@/components/delivery-partner/availability-toggle";
+import { AvailableJobsList } from "@/components/delivery-partner/available-jobs-list";
+import { ActiveDeliveryCard } from "@/components/delivery-partner/active-delivery-card";
 import { VerificationBadge } from "@/components/farmer/verification-badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -13,6 +20,11 @@ export default async function DeliveryPartnerDashboardPage() {
   if (user.role !== "delivery_partner") redirect("/dashboard");
 
   const profile = await getOwnDeliveryPartnerProfile();
+  const isVerified = profile?.verification_status === "verified";
+  const [availableJobs, activeDelivery] = await Promise.all([
+    isVerified ? getAvailableDeliveryJobs() : Promise.resolve([]),
+    isVerified ? getActiveDelivery() : Promise.resolve(null),
+  ]);
 
   if (!profile) {
     return (
@@ -58,11 +70,28 @@ export default async function DeliveryPartnerDashboardPage() {
           below and it will be reviewed again.
         </p>
       )}
+      {profile.verification_status === "verified" && activeDelivery && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-foreground">Active delivery</h2>
+          <div className="mt-3">
+            <ActiveDeliveryCard delivery={activeDelivery} />
+          </div>
+        </div>
+      )}
+
       {profile.verification_status === "verified" && (
-        <p className="mt-2 text-muted-foreground">
-          You&apos;re verified. Delivery jobs aren&apos;t available on KilimoSync
-          yet — check back soon.
-        </p>
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-foreground">Available jobs</h2>
+          {profile.availability_status === "AVAILABLE" ? (
+            <div className="mt-3">
+              <AvailableJobsList jobs={availableJobs} />
+            </div>
+          ) : (
+            <p className="mt-2 text-muted-foreground">
+              Set yourself to available above to see delivery jobs in your area.
+            </p>
+          )}
+        </div>
       )}
 
       <DeliveryPartnerProfileCard

@@ -21,6 +21,14 @@ import { Button } from "@/components/ui/button";
 
 const RETRYABLE_PAYMENT_STATUSES = new Set(["PENDING", "STK_SENT", "FAILED", "CANCELLED", "TIMEOUT"]);
 
+const VEHICLE_TYPE_LABELS: Record<string, string> = {
+  bicycle: "Bicycle",
+  motorbike: "Motorbike",
+  car: "Car",
+  van: "Van",
+  on_foot: "On foot",
+};
+
 const FAILURE_COPY: Record<string, { heading: string; body: string }> = {
   FAILED: { heading: "Payment failed", body: "Your M-PESA payment could not be completed." },
   CANCELLED: { heading: "Payment cancelled", body: "The M-PESA payment was cancelled." },
@@ -111,6 +119,33 @@ export default async function OrderDetailPage({
                 item. Our team has been notified and will contact you to resolve this — you will
                 not lose your payment.
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Delivery visibility (Phase C, checkpoint C6). Farmer gets an
+            "awaiting a delivery partner" nudge while unassigned; buyer gets
+            nothing until a partner is actually assigned — exactly the
+            distinction the Phase C design specifies (§8 vs §9). Once
+            assigned, both see the same partner name + vehicle type, per
+            §7's precedent that a farmer already sees equivalent order
+            detail. order.delivery is null until the farmer marks the order
+            READY_FOR_DELIVERY (C3); assignedPartner is null until a
+            partner claims it (C4) — both gated by RLS on the read side
+            (getOrderDetail), not by this presentation check alone. */}
+        {order.delivery && (order.delivery.assignedPartner || isFarmerOfOrder) && (
+          <Card className="mt-6">
+            <CardContent className="space-y-1 pt-6 pb-6 text-sm">
+              <p className="font-medium text-foreground">Delivery</p>
+              {order.delivery.assignedPartner ? (
+                <p className="text-muted-foreground">
+                  {order.delivery.assignedPartner.name} ·{" "}
+                  {VEHICLE_TYPE_LABELS[order.delivery.assignedPartner.vehicleType] ??
+                    order.delivery.assignedPartner.vehicleType}
+                </p>
+              ) : (
+                <p className="text-muted-foreground">Awaiting a delivery partner.</p>
+              )}
             </CardContent>
           </Card>
         )}

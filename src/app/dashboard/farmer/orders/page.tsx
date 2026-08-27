@@ -7,6 +7,14 @@ import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status
 import { FarmerOrderStatusActions } from "@/components/farmer/farmer-order-status-actions";
 import { Card, CardContent } from "@/components/ui/card";
 
+const VEHICLE_TYPE_LABELS: Record<string, string> = {
+  bicycle: "Bicycle",
+  motorbike: "Motorbike",
+  car: "Car",
+  van: "Van",
+  on_foot: "On foot",
+};
+
 export default async function FarmerOrdersPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -43,6 +51,16 @@ export default async function FarmerOrdersPage() {
                     {order.buyerName} · {new Date(order.orderCreatedAt).toLocaleString("en-KE")} · KES{" "}
                     {order.total.toFixed(2)}
                   </p>
+                  {order.delivery && (
+                    <p className="text-sm text-muted-foreground">
+                      {order.delivery.assignedPartner
+                        ? `Delivery partner: ${order.delivery.assignedPartner.name} · ${
+                            VEHICLE_TYPE_LABELS[order.delivery.assignedPartner.vehicleType] ??
+                            order.delivery.assignedPartner.vehicleType
+                          }`
+                        : "Awaiting a delivery partner"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <OrderStatusBadge status={order.orderStatus} />

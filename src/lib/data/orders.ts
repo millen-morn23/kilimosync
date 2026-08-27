@@ -1,4 +1,82 @@
 import { createClient } from "@/lib/supabase/server";
+import type { DeliveryStatus, VehicleType } from "@/lib/supabase/types";
+
+export type AssignedDeliveryPartner = {
+  name: string;
+  vehicleType: VehicleType;
+};
+
+export type OrderDeliveryInfo = {
+  status: DeliveryStatus;
+  assignedPartner: AssignedDeliveryPartner | null;
+};
+
+/**
+ * Delivery status + (only once assigned) the partner's name and vehicle
+ * type, for one or more orders at a time (Phase C, checkpoint C6).
+ * Batched rather than per-order to avoid N+1 queries from
+ * getFarmerOrders() below.
+ *
+ * Every read here goes through the caller's own RLS-respecting session —
+ * no new authorization system, no service-role client. The deliveries row
+ * itself is readable via deliveries_select_participants_or_admin
+ * (0002_rls.sql, unmodified: buyer_id/is_farmer_of_order/admin), so a
+ * buyer or farmer already sees UNASSIGNED rows for their own order today —
+ * assignedPartner is what's actually gated: it comes from
+ * users_select_assigned_delivery_partner and
+ * delivery_partner_profiles_select_for_order_participants (both 0018),
+ * which only resolve once is_order_participant_of_delivery_partner()
+ * matches an assigned transporter_id. transporter_id is null on every
+ * unassigned row, so this function never even attempts (and RLS would
+ * refuse) to resolve a partner before one exists — "only expose
+ * assignment information when a partner is actually assigned" holds by
+ * construction, not by an extra check here.
+ */
+async function getDeliveryInfoForOrders(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orderIds: string[]
+): Promise<Map<string, OrderDeliveryInfo>> {
+  const result = new Map<string, OrderDeliveryInfo>();
+  if (orderIds.length === 0) return result;
+
+  const { data: deliveries } = await supabase
+    .from("deliveries")
+    .select("order_id, status, transporter_id")
+    .in("order_id", orderIds);
+  if (!deliveries || deliveries.length === 0) return result;
+
+  const transporterIds = [
+    ...new Set(
+      deliveries
+        .map((d) => d.transporter_id)
+        .filter((id): id is string => id !== null)
+    ),
+  ];
+
+  const partnerByUserId = new Map<string, AssignedDeliveryPartner>();
+  if (transporterIds.length > 0) {
+    const [{ data: users }, { data: profiles }] = await Promise.all([
+      supabase.from("users").select("id, name").in("id", transporterIds),
+      supabase
+        .from("delivery_partner_profiles")
+        .select("user_id, vehicle_type")
+        .in("user_id", transporterIds),
+    ]);
+    const vehicleByUserId = new Map((profiles ?? []).map((p) => [p.user_id, p.vehicle_type]));
+    for (const u of users ?? []) {
+      const vehicleType = vehicleByUserId.get(u.id);
+      if (vehicleType) partnerByUserId.set(u.id, { name: u.name, vehicleType });
+    }
+  }
+
+  for (const d of deliveries) {
+    result.set(d.order_id, {
+      status: d.status,
+      assignedPartner: d.transporter_id ? partnerByUserId.get(d.transporter_id) ?? null : null,
+    });
+  }
+  return result;
+}
 
 export type OrderListItem = {
   id: string;
@@ -35,6 +113,7 @@ export type OrderDetail = {
   delivery_notes: string | null;
   created_at: string;
   items: OrderItemDetail[];
+  delivery: OrderDeliveryInfo | null;
 };
 
 // RLS (supabase/migrations/0002_rls.sql, 0005_checkout_policies.sql)
@@ -83,7 +162,9 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     .select("id, product_id, product_name_snapshot, price_at_purchase, quantity, subtotal, farmer_id")
     .eq("order_id", orderId);
 
-  return { ...order, items: items ?? [] };
+  const deliveryMap = await getDeliveryInfoForOrders(supabase, [orderId]);
+
+  return { ...order, items: items ?? [], delivery: deliveryMap.get(orderId) ?? null };
 }
 
 export type FarmerOrderLine = {
@@ -133,9 +214,16 @@ export type FarmerOrder = {
   buyerName: string;
   items: { productName: string; quantity: number; subtotal: number }[];
   total: number;
+  delivery: OrderDeliveryInfo | null;
 };
 
-/** Same underlying rows as getFarmerOrderLines, grouped by order for a per-order action UI. */
+/**
+ * Same underlying rows as getFarmerOrderLines, grouped by order for a
+ * per-order action UI. The order_items -> orders join itself
+ * (getFarmerOrderLines) is untouched by C6 — delivery info is merged in
+ * afterward, batched across every order on the page in one pair of
+ * queries via getDeliveryInfoForOrders() rather than one query per order.
+ */
 export async function getFarmerOrders(farmerId: string): Promise<FarmerOrder[]> {
   const lines = await getFarmerOrderLines(farmerId);
   const byOrder = new Map<string, FarmerOrder>();
@@ -154,8 +242,15 @@ export async function getFarmerOrders(farmerId: string): Promise<FarmerOrder[]> 
         buyerName: line.buyerName,
         items: [{ productName: line.productName, quantity: line.quantity, subtotal: line.subtotal }],
         total: line.subtotal,
+        delivery: null,
       });
     }
+  }
+
+  const supabase = await createClient();
+  const deliveryMap = await getDeliveryInfoForOrders(supabase, [...byOrder.keys()]);
+  for (const order of byOrder.values()) {
+    order.delivery = deliveryMap.get(order.orderId) ?? null;
   }
 
   return [...byOrder.values()];
