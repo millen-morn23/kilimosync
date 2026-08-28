@@ -481,3 +481,85 @@ export async function markDeliveryFailed(deliveryId: string): Promise<ActionResu
   revalidatePath(`/orders/${delivery.order_id}`);
   return { success: true };
 }
+
+const LOCATION_ACTIVE_STATUSES = ["ASSIGNED", "PICKED_UP", "IN_TRANSIT"] as const;
+
+/**
+ * Phase F, checkpoint F-2. Upserts the signed-in delivery partner's current
+ * position for one of their own active deliveries — never a history, since
+ * delivery_locations.delivery_id is the table's own primary key
+ * (0021_delivery_live_location.sql): a second call for the same delivery
+ * overwrites the existing row in place, it cannot create a second one.
+ *
+ * Identity is auth.getUser() only, exactly like every other action in this
+ * file — deliveryId is just "which row," the same non-identity-bearing
+ * parameter claimDelivery()/advanceDeliveryStatus()/markDeliveryFailed()
+ * above already accept from the client. transporter_id is never taken from
+ * the caller; it is never even a parameter here.
+ *
+ * The pre-check SELECT below re-derives the exact same condition
+ * delivery_locations_insert_own_active/_update_own_active (0021) already
+ * enforce as the real boundary — kept for the same reason this pattern is
+ * already used throughout this codebase (see updateOrderStatus()'s own doc
+ * comment, src/lib/actions/orders.ts): a clean, expected error instead of
+ * an upsert's ON CONFLICT path interacting with RLS in a less predictable
+ * way. If this check were somehow bypassed, the write below would still be
+ * rejected by RLS itself.
+ *
+ * No service-role client anywhere in this function: 0021's RLS already
+ * grants the assigned partner exactly this write for their own active
+ * delivery — there is no write here that RLS forbids and a service-role
+ * escalation would need to route around, unlike e.g. createDeliveryJob()'s
+ * insert above, which exists specifically because farmers have no write
+ * grant on deliveries at all.
+ *
+ * Failure handling deliberately does not surface a write error to the
+ * caller as anything the UI needs to react to specially — per the approved
+ * Phase F design, a failed write (most likely a connectivity blip) is left
+ * for the next watchPosition() callback to retry naturally; no offline
+ * queue, no retry loop is built here.
+ */
+export async function updateDeliveryPartnerLocation(input: {
+  deliveryId: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  recordedAt: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { data: delivery } = await supabase
+    .from("deliveries")
+    .select("id")
+    .eq("id", input.deliveryId)
+    .eq("transporter_id", user.id)
+    .in("status", LOCATION_ACTIVE_STATUSES)
+    .maybeSingle();
+
+  if (!delivery) {
+    return { error: "This delivery is no longer active." };
+  }
+
+  const { error } = await supabase
+    .from("delivery_locations")
+    .upsert(
+      {
+        delivery_id: input.deliveryId,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        accuracy_meters: input.accuracyMeters,
+        recorded_at: input.recordedAt,
+      },
+      { onConflict: "delivery_id" }
+    );
+
+  if (error) {
+    return { error: "Could not update location. Please try again." };
+  }
+
+  return { success: true };
+}

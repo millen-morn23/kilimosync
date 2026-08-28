@@ -11,6 +11,7 @@ import { DeliveryPartnerProfileCard } from "@/components/delivery-partner/profil
 import { AvailabilityToggle } from "@/components/delivery-partner/availability-toggle";
 import { AvailableJobsList } from "@/components/delivery-partner/available-jobs-list";
 import { ActiveDeliveryCard } from "@/components/delivery-partner/active-delivery-card";
+import { LocationSharingIndicator } from "@/components/delivery-partner/location-sharing-indicator";
 import { VerificationBadge } from "@/components/farmer/verification-badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -73,8 +74,9 @@ export default async function DeliveryPartnerDashboardPage() {
       {profile.verification_status === "verified" && activeDelivery && (
         <div className="mt-6">
           <h2 className="text-lg font-semibold text-foreground">Active delivery</h2>
-          <div className="mt-3">
+          <div className="mt-3 space-y-3">
             <ActiveDeliveryCard delivery={activeDelivery} />
+            <LocationSharingIndicator deliveryId={activeDelivery.id} />
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ import { SiteHeaderContainer } from "@/components/marketing/site-header-containe
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { OrderStatusBadge, PaymentStatusBadge, DeliveryStatusBadge } from "@/components/orders/status-badges";
 import { DeliveryTimeline } from "@/components/orders/delivery-timeline";
+import { DeliveryLiveMap } from "@/components/orders/delivery-live-map";
 import { CancelOrderButton } from "@/components/orders/cancel-order-button";
 import { PayWithMpesa } from "@/components/checkout/pay-with-mpesa";
 import { OrderReceipt } from "@/components/checkout/order-receipt";
@@ -22,6 +23,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 const RETRYABLE_PAYMENT_STATUSES = new Set(["PENDING", "STK_SENT", "FAILED", "CANCELLED", "TIMEOUT"]);
+
+// Phase F, checkpoint F-3: the live map is only meaningful while the
+// delivery is actually in progress — a DELIVERED/FAILED delivery keeps
+// assignedPartner populated forever (transporter_id is never cleared),
+// so this is a narrower, dedicated check rather than reusing that gate.
+const LIVE_TRACKABLE_STATUSES = new Set(["ASSIGNED", "PICKED_UP", "IN_TRANSIT"]);
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   bicycle: "Bicycle",
@@ -162,6 +169,12 @@ export default async function OrderDetailPage({
                       order.delivery.assignedPartner.vehicleType}
                   </p>
                   <DeliveryTimeline delivery={order.delivery} />
+                  {LIVE_TRACKABLE_STATUSES.has(order.delivery.status) && (
+                    <DeliveryLiveMap
+                      deliveryId={order.delivery.deliveryId}
+                      initialLocation={order.delivery.currentLocation}
+                    />
+                  )}
                 </>
               ) : (
                 <p className="text-muted-foreground">Awaiting a delivery partner.</p>

@@ -432,6 +432,32 @@ export interface Database {
           },
         ];
       };
+      delivery_locations: {
+        Row: {
+          delivery_id: string;
+          latitude: number;
+          longitude: number;
+          accuracy_meters: number | null;
+          recorded_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["delivery_locations"]["Row"]> & {
+          delivery_id: string;
+          latitude: number;
+          longitude: number;
+          recorded_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["delivery_locations"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "delivery_locations_delivery_id_fkey",
+            columns: ["delivery_id"],
+            isOneToOne: true,
+            referencedRelation: "deliveries",
+            referencedColumns: ["id"],
+          },
+        ];
+      };
       notifications: {
         Row: {
           id: string;

@@ -5,6 +5,7 @@ import { getCurrentUser, getOwnFarmerProfile } from "@/lib/data/current-user";
 import { getFarmerOrders } from "@/lib/data/orders";
 import { OrderStatusBadge, PaymentStatusBadge, DeliveryStatusBadge } from "@/components/orders/status-badges";
 import { DeliveryTimeline } from "@/components/orders/delivery-timeline";
+import { DeliveryLiveMap } from "@/components/orders/delivery-live-map";
 import { FarmerOrderStatusActions } from "@/components/farmer/farmer-order-status-actions";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -15,6 +16,12 @@ const VEHICLE_TYPE_LABELS: Record<string, string> = {
   van: "Van",
   on_foot: "On foot",
 };
+
+// Phase F, checkpoint F-3: see the identical constant/comment in
+// src/app/orders/[id]/page.tsx — assignedPartner alone isn't a safe gate
+// for the live map, since transporter_id is never cleared once a delivery
+// completes.
+const LIVE_TRACKABLE_STATUSES = new Set(["ASSIGNED", "PICKED_UP", "IN_TRANSIT"]);
 
 export default async function FarmerOrdersPage() {
   const user = await getCurrentUser();
@@ -69,6 +76,12 @@ export default async function FarmerOrdersPage() {
                         <>
                           <DeliveryStatusBadge status={order.delivery.status} />
                           <DeliveryTimeline delivery={order.delivery} />
+                          {LIVE_TRACKABLE_STATUSES.has(order.delivery.status) && (
+                            <DeliveryLiveMap
+                              deliveryId={order.delivery.deliveryId}
+                              initialLocation={order.delivery.currentLocation}
+                            />
+                          )}
                         </>
                       )}
                     </div>

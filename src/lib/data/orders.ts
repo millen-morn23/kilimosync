@@ -7,6 +7,7 @@ export type AssignedDeliveryPartner = {
 };
 
 export type OrderDeliveryInfo = {
+  deliveryId: string;
   status: DeliveryStatus;
   transporterId: string | null;
   assignedPartner: AssignedDeliveryPartner | null;
@@ -15,6 +16,19 @@ export type OrderDeliveryInfo = {
   inTransitAt: string | null;
   deliveredAt: string | null;
   failedAt: string | null;
+  currentLocation: DeliveryLocationSnapshot | null;
+};
+
+// Phase F, checkpoint F-3. The current (only) row for this delivery in
+// delivery_locations (0021_delivery_live_location.sql) — recorded_at is
+// the browser's own GPS observation time, the only timestamp the live map
+// and its staleness check ever use; never updated_at, and never a value
+// computed here.
+export type DeliveryLocationSnapshot = {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  recordedAt: string;
 };
 
 /**
@@ -42,6 +56,17 @@ export type OrderDeliveryInfo = {
  * 0020_delivery_tracking_timestamps.sql, so the tracking timeline
  * (src/components/orders/delivery-timeline.tsx) can render from data
  * already fetched here — no second query.
+ *
+ * Phase F, checkpoint F-3: also selects the delivery's own id (needed by
+ * the live map to identify which Realtime channel/row to subscribe to)
+ * and embeds delivery_locations — a single left-join via the foreign-key
+ * relationship declared in src/lib/supabase/types.ts, the same embed
+ * pattern getFarmerOrderLines() below already uses for orders(...) —
+ * rather than a second per-delivery query. RLS on delivery_locations
+ * (0021) still applies to the embed independently: a delivery with no
+ * row yet, or one this caller isn't authorized to see, simply embeds as
+ * null, which is exactly the "no location yet" state the map component
+ * needs to render correctly.
  */
 async function getDeliveryInfoForOrders(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -53,7 +78,7 @@ async function getDeliveryInfoForOrders(
   const { data: deliveries } = await supabase
     .from("deliveries")
     .select(
-      "order_id, status, transporter_id, assigned_at, picked_up_at, in_transit_at, delivered_at, failed_at"
+      "id, order_id, status, transporter_id, assigned_at, picked_up_at, in_transit_at, delivered_at, failed_at, delivery_locations(latitude, longitude, accuracy_meters, recorded_at)"
     )
     .in("order_id", orderIds);
   if (!deliveries || deliveries.length === 0) return result;
@@ -83,7 +108,17 @@ async function getDeliveryInfoForOrders(
   }
 
   for (const d of deliveries) {
+    // Same defensive array-or-object unwrap getFarmerOrderLines() already
+    // uses for its own orders(...) embed below — PostgREST's embed shape
+    // for a declared one-to-one relationship is a single object, but this
+    // guards against a null/array response the same way that precedent
+    // already does, rather than assuming the shape unchecked.
+    const locationRow = Array.isArray(d.delivery_locations)
+      ? d.delivery_locations[0]
+      : d.delivery_locations;
+
     result.set(d.order_id, {
+      deliveryId: d.id,
       status: d.status,
       transporterId: d.transporter_id,
       assignedPartner: d.transporter_id ? partnerByUserId.get(d.transporter_id) ?? null : null,
@@ -92,6 +127,14 @@ async function getDeliveryInfoForOrders(
       inTransitAt: d.in_transit_at,
       deliveredAt: d.delivered_at,
       failedAt: d.failed_at,
+      currentLocation: locationRow
+        ? {
+            latitude: locationRow.latitude,
+            longitude: locationRow.longitude,
+            accuracyMeters: locationRow.accuracy_meters,
+            recordedAt: locationRow.recorded_at,
+          }
+        : null,
     });
   }
   return result;

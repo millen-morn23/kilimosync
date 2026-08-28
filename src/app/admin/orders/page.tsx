@@ -5,10 +5,18 @@ import { PackageSearch } from "lucide-react";
 import { getAdminOrders } from "@/lib/data/orders";
 import { OrderStatusBadge, PaymentStatusBadge, DeliveryStatusBadge } from "@/components/orders/status-badges";
 import { DeliveryTimeline } from "@/components/orders/delivery-timeline";
+import { DeliveryLiveMap } from "@/components/orders/delivery-live-map";
 import { AdminOrderStatusActions } from "@/components/admin/order-status-actions";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Orders — Admin" };
+
+// Phase F, checkpoint F-4: identical constant/reasoning to the buyer and
+// farmer pages (src/app/orders/[id]/page.tsx,
+// src/app/dashboard/farmer/orders/page.tsx) — transporterId alone isn't a
+// safe gate for the live map, since it's never cleared once a delivery
+// completes; the map needs the narrower, genuinely-active status set.
+const LIVE_TRACKABLE_STATUSES = new Set(["ASSIGNED", "PICKED_UP", "IN_TRANSIT"]);
 
 export default async function AdminOrdersPage() {
   const orders = await getAdminOrders();
@@ -71,6 +79,12 @@ export default async function AdminOrdersPage() {
                     <DeliveryStatusBadge status={order.delivery.status} />
                   </div>
                   <DeliveryTimeline delivery={order.delivery} />
+                  {LIVE_TRACKABLE_STATUSES.has(order.delivery.status) && (
+                    <DeliveryLiveMap
+                      deliveryId={order.delivery.deliveryId}
+                      initialLocation={order.delivery.currentLocation}
+                    />
+                  )}
                 </CardContent>
               )}
             </Card>
