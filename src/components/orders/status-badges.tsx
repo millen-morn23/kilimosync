@@ -23,6 +23,18 @@ const PAYMENT_STATUS_VARIANT: Record<string, "default" | "success" | "warning" |
   TIMEOUT: "destructive",
 };
 
+// Phase E, checkpoint E-3. deliveries.status is the source of truth for
+// this badge — never derived from order_status, which collapses PICKED_UP
+// and IN_TRANSIT into one order-level bucket (see delivery-timeline.tsx).
+const DELIVERY_STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "destructive" | "outline"> = {
+  UNASSIGNED: "outline",
+  ASSIGNED: "default",
+  PICKED_UP: "default",
+  IN_TRANSIT: "warning",
+  DELIVERED: "success",
+  FAILED: "destructive",
+};
+
 function humanize(status: string): string {
   return status
     .toLowerCase()
@@ -37,4 +49,8 @@ export function OrderStatusBadge({ status }: { status: string }) {
 
 export function PaymentStatusBadge({ status }: { status: string }) {
   return <Badge variant={PAYMENT_STATUS_VARIANT[status] ?? "outline"}>{humanize(status)}</Badge>;
+}
+
+export function DeliveryStatusBadge({ status }: { status: string }) {
+  return <Badge variant={DELIVERY_STATUS_VARIANT[status] ?? "outline"}>{humanize(status)}</Badge>;
 }

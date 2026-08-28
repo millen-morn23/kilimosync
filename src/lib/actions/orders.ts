@@ -135,6 +135,16 @@ async function syncDeliveryIfUnclaimed(
     return { error: "Could not update this order — it may have already moved on." };
   }
 
+  // Phase E, checkpoint E-1: guard_delivery_status_update() (0018, extended
+  // by 0020) only fires BEFORE UPDATE, so its in_transit_at COALESCE never
+  // runs for a brand-new row created directly at IN_TRANSIT — this is the
+  // one INSERT-only path that can reach IN_TRANSIT without ever passing
+  // through that trigger. Set explicitly here, and only here: never added
+  // to `patch` itself, since `patch` is also reused by the UPDATE call
+  // above, and sending in_transit_at on that UPDATE would ride past the
+  // trigger's guard on any subsequent re-fire and silently overwrite an
+  // already-set timestamp — the exact overwrite Phase E's timestamp
+  // invariant exists to prevent.
   const { error: insertError } = await supabase.from("deliveries").insert({
     order_id: orderId,
     pickup_location: "Farm pickup — coordinated by admin",
@@ -142,6 +152,7 @@ async function syncDeliveryIfUnclaimed(
     delivery_fee: order.delivery_fee,
     transporter_id: null,
     ...patch,
+    ...(orderStatus === "OUT_FOR_DELIVERY" ? { in_transit_at: now } : {}),
   });
 
   if (insertError) {

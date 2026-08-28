@@ -10,6 +10,11 @@ export type OrderDeliveryInfo = {
   status: DeliveryStatus;
   transporterId: string | null;
   assignedPartner: AssignedDeliveryPartner | null;
+  assignedAt: string | null;
+  pickedUpAt: string | null;
+  inTransitAt: string | null;
+  deliveredAt: string | null;
+  failedAt: string | null;
 };
 
 /**
@@ -32,6 +37,11 @@ export type OrderDeliveryInfo = {
  * refuse) to resolve a partner before one exists — "only expose
  * assignment information when a partner is actually assigned" holds by
  * construction, not by an extra check here.
+ *
+ * Phase E, checkpoint E-3: also selects the five stage timestamps added by
+ * 0020_delivery_tracking_timestamps.sql, so the tracking timeline
+ * (src/components/orders/delivery-timeline.tsx) can render from data
+ * already fetched here — no second query.
  */
 async function getDeliveryInfoForOrders(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -42,7 +52,9 @@ async function getDeliveryInfoForOrders(
 
   const { data: deliveries } = await supabase
     .from("deliveries")
-    .select("order_id, status, transporter_id")
+    .select(
+      "order_id, status, transporter_id, assigned_at, picked_up_at, in_transit_at, delivered_at, failed_at"
+    )
     .in("order_id", orderIds);
   if (!deliveries || deliveries.length === 0) return result;
 
@@ -75,6 +87,11 @@ async function getDeliveryInfoForOrders(
       status: d.status,
       transporterId: d.transporter_id,
       assignedPartner: d.transporter_id ? partnerByUserId.get(d.transporter_id) ?? null : null,
+      assignedAt: d.assigned_at,
+      pickedUpAt: d.picked_up_at,
+      inTransitAt: d.in_transit_at,
+      deliveredAt: d.delivered_at,
+      failedAt: d.failed_at,
     });
   }
   return result;

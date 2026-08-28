@@ -403,7 +403,9 @@ export interface Database {
           status: DeliveryStatus;
           assigned_at: string | null;
           picked_up_at: string | null;
+          in_transit_at: string | null;
           delivered_at: string | null;
+          failed_at: string | null;
           created_at: string;
           updated_at: string;
         };

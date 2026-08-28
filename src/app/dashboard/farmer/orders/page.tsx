@@ -3,7 +3,8 @@ import { PackageSearch } from "lucide-react";
 
 import { getCurrentUser, getOwnFarmerProfile } from "@/lib/data/current-user";
 import { getFarmerOrders } from "@/lib/data/orders";
-import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status-badges";
+import { OrderStatusBadge, PaymentStatusBadge, DeliveryStatusBadge } from "@/components/orders/status-badges";
+import { DeliveryTimeline } from "@/components/orders/delivery-timeline";
 import { FarmerOrderStatusActions } from "@/components/farmer/farmer-order-status-actions";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -52,14 +53,25 @@ export default async function FarmerOrdersPage() {
                     {order.total.toFixed(2)}
                   </p>
                   {order.delivery && (
-                    <p className="text-sm text-muted-foreground">
-                      {order.delivery.assignedPartner
-                        ? `Delivery partner: ${order.delivery.assignedPartner.name} · ${
-                            VEHICLE_TYPE_LABELS[order.delivery.assignedPartner.vehicleType] ??
-                            order.delivery.assignedPartner.vehicleType
-                          }`
-                        : "Awaiting a delivery partner"}
-                    </p>
+                    <div className="mt-1 space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        {order.delivery.assignedPartner ? (
+                          <>
+                            Delivery partner: {order.delivery.assignedPartner.name} ·{" "}
+                            {VEHICLE_TYPE_LABELS[order.delivery.assignedPartner.vehicleType] ??
+                              order.delivery.assignedPartner.vehicleType}
+                          </>
+                        ) : (
+                          "Awaiting a delivery partner"
+                        )}
+                      </p>
+                      {order.delivery.assignedPartner && (
+                        <>
+                          <DeliveryStatusBadge status={order.delivery.status} />
+                          <DeliveryTimeline delivery={order.delivery} />
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

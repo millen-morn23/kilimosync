@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { PackageSearch } from "lucide-react";
 
 import { getAdminOrders } from "@/lib/data/orders";
-import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status-badges";
+import { OrderStatusBadge, PaymentStatusBadge, DeliveryStatusBadge } from "@/components/orders/status-badges";
+import { DeliveryTimeline } from "@/components/orders/delivery-timeline";
 import { AdminOrderStatusActions } from "@/components/admin/order-status-actions";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -52,6 +53,26 @@ export default async function AdminOrdersPage() {
                   />
                 </div>
               </CardContent>
+              {/* Phase E, checkpoint E-4: read-only tracking parity with
+                  buyer/farmer — reuses the same delivery data D1 already
+                  attached to getAdminOrders() (order.delivery), so no
+                  second query. transporterId gates this exactly the way
+                  D1's own claimed-check already does: an unassigned or
+                  nonexistent delivery shows nothing here, same as the
+                  admin's existing representation of that case — no
+                  misleading active timeline is ever shown. This block is
+                  purely informational and sits below the action controls
+                  above; it does not read from or write to any action
+                  state, and AdminOrderStatusActions is unchanged. */}
+              {order.delivery && order.delivery.transporterId && (
+                <CardContent className="flex flex-col gap-2 border-t border-border pt-4 pb-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-foreground">Delivery tracking</p>
+                    <DeliveryStatusBadge status={order.delivery.status} />
+                  </div>
+                  <DeliveryTimeline delivery={order.delivery} />
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>

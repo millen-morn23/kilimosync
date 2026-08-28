@@ -10,7 +10,8 @@ import { getDisputeForOrder } from "@/lib/data/disputes";
 import { isMpesaConfigured } from "@/lib/mpesa/config";
 import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status-badges";
+import { OrderStatusBadge, PaymentStatusBadge, DeliveryStatusBadge } from "@/components/orders/status-badges";
+import { DeliveryTimeline } from "@/components/orders/delivery-timeline";
 import { CancelOrderButton } from "@/components/orders/cancel-order-button";
 import { PayWithMpesa } from "@/components/checkout/pay-with-mpesa";
 import { OrderReceipt } from "@/components/checkout/order-receipt";
@@ -130,26 +131,38 @@ export default async function OrderDetailPage({
           </Card>
         )}
 
-        {/* Delivery visibility (Phase C, checkpoint C6). Farmer gets an
-            "awaiting a delivery partner" nudge while unassigned; buyer gets
-            nothing until a partner is actually assigned — exactly the
-            distinction the Phase C design specifies (§8 vs §9). Once
-            assigned, both see the same partner name + vehicle type, per
-            §7's precedent that a farmer already sees equivalent order
-            detail. order.delivery is null until the farmer marks the order
-            READY_FOR_DELIVERY (C3); assignedPartner is null until a
-            partner claims it (C4) — both gated by RLS on the read side
-            (getOrderDetail), not by this presentation check alone. */}
+        {/* Delivery visibility (Phase C, checkpoint C6; tracking detail
+            added Phase E, checkpoint E-3). Farmer gets an "awaiting a
+            delivery partner" nudge while unassigned; buyer gets nothing
+            until a partner is actually assigned — exactly the distinction
+            the Phase C design specifies (§8 vs §9), preserved unchanged by
+            Phase E. Once assigned, both see the same partner name +
+            vehicle type, plus the delivery-level status badge and
+            chronological timeline (deliveries.status/timestamps — never
+            derived from order_status, which collapses PICKED_UP and
+            IN_TRANSIT into one bucket). order.delivery is null until the
+            farmer marks the order READY_FOR_DELIVERY (C3); assignedPartner
+            is null until a partner claims it (C4) — both gated by RLS on
+            the read side (getOrderDetail), not by this presentation check
+            alone. */}
         {order.delivery && (order.delivery.assignedPartner || isFarmerOfOrder) && (
           <Card className="mt-6">
-            <CardContent className="space-y-1 pt-6 pb-6 text-sm">
-              <p className="font-medium text-foreground">Delivery</p>
+            <CardContent className="space-y-3 pt-6 pb-6 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-foreground">Delivery</p>
+                {order.delivery.assignedPartner && (
+                  <DeliveryStatusBadge status={order.delivery.status} />
+                )}
+              </div>
               {order.delivery.assignedPartner ? (
-                <p className="text-muted-foreground">
-                  {order.delivery.assignedPartner.name} ·{" "}
-                  {VEHICLE_TYPE_LABELS[order.delivery.assignedPartner.vehicleType] ??
-                    order.delivery.assignedPartner.vehicleType}
-                </p>
+                <>
+                  <p className="text-muted-foreground">
+                    {order.delivery.assignedPartner.name} ·{" "}
+                    {VEHICLE_TYPE_LABELS[order.delivery.assignedPartner.vehicleType] ??
+                      order.delivery.assignedPartner.vehicleType}
+                  </p>
+                  <DeliveryTimeline delivery={order.delivery} />
+                </>
               ) : (
                 <p className="text-muted-foreground">Awaiting a delivery partner.</p>
               )}
