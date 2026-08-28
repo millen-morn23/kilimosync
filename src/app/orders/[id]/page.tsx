@@ -11,6 +11,7 @@ import { isMpesaConfigured } from "@/lib/mpesa/config";
 import { SiteHeaderContainer } from "@/components/marketing/site-header-container";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/orders/status-badges";
+import { CancelOrderButton } from "@/components/orders/cancel-order-button";
 import { PayWithMpesa } from "@/components/checkout/pay-with-mpesa";
 import { OrderReceipt } from "@/components/checkout/order-receipt";
 import { ReviewForm } from "@/components/reviews/review-form";
@@ -77,6 +78,12 @@ export default async function OrderDetailPage({
         <p className="mt-1 text-sm text-muted-foreground">
           Placed {new Date(order.created_at).toLocaleString("en-KE")}
         </p>
+
+        {isBuyer && order.order_status === "PENDING_PAYMENT" && (
+          <div className="mt-4">
+            <CancelOrderButton orderId={order.id} />
+          </div>
+        )}
 
         {order.payment_status === "PAID" && (
           <div className="mt-6">

@@ -45,7 +45,11 @@ export default async function AdminOrdersPage() {
                 <div className="flex items-center gap-2">
                   <OrderStatusBadge status={order.order_status} />
                   <PaymentStatusBadge status={order.payment_status} />
-                  <AdminOrderStatusActions orderId={order.id} orderStatus={order.order_status} />
+                  <AdminOrderStatusActions
+                    orderId={order.id}
+                    orderStatus={order.order_status}
+                    delivery={order.delivery}
+                  />
                 </div>
               </CardContent>
             </Card>

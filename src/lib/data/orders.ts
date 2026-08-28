@@ -8,6 +8,7 @@ export type AssignedDeliveryPartner = {
 
 export type OrderDeliveryInfo = {
   status: DeliveryStatus;
+  transporterId: string | null;
   assignedPartner: AssignedDeliveryPartner | null;
 };
 
@@ -72,6 +73,7 @@ async function getDeliveryInfoForOrders(
   for (const d of deliveries) {
     result.set(d.order_id, {
       status: d.status,
+      transporterId: d.transporter_id,
       assignedPartner: d.transporter_id ? partnerByUserId.get(d.transporter_id) ?? null : null,
     });
   }
@@ -265,16 +267,38 @@ export type AdminOrderListItem = {
   delivery_county: string;
   delivery_address: string;
   created_at: string;
+  delivery: OrderDeliveryInfo | null;
 };
 
-/** Orders that have been paid for — the admin delivery queue. RLS (is_admin()) is the real boundary. */
+/**
+ * Orders visible to admin. RLS (is_admin()) is the real boundary. Delivery
+ * info (Phase D, checkpoint D1) is attached so AdminOrderStatusActions can
+ * tell whether a delivery partner has already claimed the delivery
+ * (transporterId !== null) before deciding whether to offer the ordinary
+ * status buttons or the explicit admin override — reuses
+ * getDeliveryInfoForOrders(), the same batched helper getFarmerOrders()
+ * already relies on, rather than a new query shape.
+ *
+ * The filter was originally just `payment_status != 'PENDING'` (the "paid
+ * orders" delivery queue this page was first built for). Phase D, D3 needs
+ * admin to also be able to see and cancel a PENDING_PAYMENT order where the
+ * buyer never attempted payment at all — payment_status still the default
+ * 'PENDING' — which the original filter excluded entirely. The .or() below
+ * adds that one case back in (any order whose order_status is
+ * PENDING_PAYMENT, regardless of payment_status) while leaving every
+ * previously-visible row exactly as visible as before: the original
+ * condition is still one side of the OR, untouched.
+ */
 export async function getAdminOrders(): Promise<AdminOrderListItem[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
     .select("id, buyer_name, total_amount, payment_status, order_status, delivery_county, delivery_address, created_at")
-    .neq("payment_status", "PENDING")
+    .or("payment_status.neq.PENDING,order_status.eq.PENDING_PAYMENT")
     .order("created_at", { ascending: false });
 
-  return data ?? [];
+  const orders = data ?? [];
+  const deliveryMap = await getDeliveryInfoForOrders(supabase, orders.map((o) => o.id));
+
+  return orders.map((o) => ({ ...o, delivery: deliveryMap.get(o.id) ?? null }));
 }
