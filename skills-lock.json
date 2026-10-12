@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "code-reviewer": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-reviewer/SKILL.md",
+      "computedHash": "fc6facf2a998be2cf8b87d4a0b209d7dc69f233287b699baf44cbeaf6ea4087f"
+    },
     "impeccable-design-polish": {
       "source": "nexu-io/open-design",
       "sourceType": "github",
