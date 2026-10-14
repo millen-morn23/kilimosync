@@ -6,6 +6,54 @@
       "sourceType": "github",
       "skillPath": "skills/cinetic/SKILL.md",
       "computedHash": "38d10047c56e562ace8a0a942df160a97220e5d5a367298db082caa61ef9e566"
+    },
+    "crazy-ecommerce-builder-skill": {
+      "source": "buildfastwithai/buildfast-skills",
+      "sourceType": "github",
+      "skillPath": "crazy-ecommerce-builder-skill/SKILL.md",
+      "computedHash": "8deff73fc529bfd102f0a8b2ea7405ea1826b4c0c5b2ef1c24f599ecb78bece1"
+    },
+    "create-svg": {
+      "source": "buildfastwithai/buildfast-skills",
+      "sourceType": "github",
+      "skillPath": "create-svg-skill/SKILL.md",
+      "computedHash": "2d257ccd5960e8848f575213420184ca4d7a404aca17e52938b6b5f7130e7243"
+    },
+    "landing-page-generator-skill": {
+      "source": "buildfastwithai/buildfast-skills",
+      "sourceType": "github",
+      "skillPath": "landing-page-generator-skill/SKILL.md",
+      "computedHash": "30ba41500a8e7e85086fb3465d85617057f190f154a1badd687c7edb32c32abb"
+    },
+    "motion-studio": {
+      "source": "buildfastwithai/buildfast-skills",
+      "sourceType": "github",
+      "skillPath": "motion-studio-skill/SKILL.md",
+      "computedHash": "521038a9697988aa20d8b7e98e614bf5654425ee16d208fcb40328ff0dbd7b53"
+    },
+    "premium-ui-revamp-skill": {
+      "source": "buildfastwithai/buildfast-skills",
+      "sourceType": "github",
+      "skillPath": "premium-ui-revamp-skill/SKILL.md",
+      "computedHash": "8023720e685d8e6674fc9aa9d729aa548a6ddcd1d4600f553fc20a80d2157174"
+    },
+    "session-story": {
+      "source": "heygen-com/hyperframes-community-skills",
+      "sourceType": "github",
+      "skillPath": "skills/session-story/SKILL.md",
+      "computedHash": "f9fe659975ee669c8942655ac329d6ea04d43b9f8a5161c9f65657f822fce199"
+    },
+    "talking-avatar-skill": {
+      "source": "buildfastwithai/buildfast-skills",
+      "sourceType": "github",
+      "skillPath": "talking-avatar-skill/SKILL.md",
+      "computedHash": "2d272a1e38adce50b16554085e29695c38be1731f5fd2af1e09fc9b55d6e5e87"
+    },
+    "threejs-game-generator-skill": {
+      "source": "buildfastwithai/buildfast-skills",
+      "sourceType": "github",
+      "skillPath": "threejs-game-generator-skill/SKILL.md",
+      "computedHash": "b27a54eb72fa8923b37d4bd8d4b56bf9b17393ed788182ba8be01589204bf838"
     }
   }
 }
